@@ -1,0 +1,27 @@
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: oracle-db
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: django
+      APP_USER_PASSWORD: django
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+
+
+  web:
+    build: .
+    container_name: django-app
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - oracle
+
+
+volumes:
+  oracle-data:
