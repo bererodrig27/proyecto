@@ -1,0 +1,73 @@
+{% extends "MisionaBio/base.html" %}
+
+{% block title %}Especies{% endblock %}
+
+{% block content %}
+
+  <div class="page-header">
+    <div>
+      <h1>Especies</h1>
+      <p>
+        {% if hay_filtros %}{{ total }} especie{{ total|pluralize }} con los filtros aplicados.
+        {% else %}{{ total }} especie{{ total|pluralize }} registrada{{ total|pluralize }}.{% endif %}
+      </p>
+    </div>
+    {% if user.es_administrador %}
+      <a href="{% url 'especies:crear' %}" class="btn btn--primary">+ Nueva especie</a>
+    {% endif %}
+  </div>
+
+  <form method="get" class="filters card" aria-label="Filtros de especies">
+    <div class="field">{{ form.q.label_tag }}{{ form.q }}</div>
+    <div class="field">{{ form.clase.label_tag }}{{ form.clase }}</div>
+    <div class="field">{{ form.estado.label_tag }}{{ form.estado }}</div>
+    <div class="field">{{ form.por_pagina.label_tag }}{{ form.por_pagina }}</div>
+    <div class="filters__actions">
+      <button type="submit" class="btn btn--primary btn--sm">Filtrar</button>
+      {% if hay_filtros %}<a href="{% url 'especies:lista' %}" class="btn btn--outline btn--sm">Limpiar</a>{% endif %}
+    </div>
+  </form>
+
+  <section class="table-card" aria-label="Listado de especies">
+    <div class="table-scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Nombre científico</th>
+            <th scope="col">Nombre común</th>
+            <th scope="col">Clase</th>
+            <th scope="col">Conservación</th>
+            <th scope="col" class="num">Avistamientos</th>
+            <th scope="col"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in page_obj %}
+            <tr>
+              <td><a href="{% url 'especies:detalle' e.pk %}" class="sci-name">{{ e.nombre_cientifico }}</a></td>
+              <td>{{ e.nombre_comun|default:"—" }}</td>
+              <td>{{ e.clase_taxonomica|default:"—" }}</td>
+              <td><span class="badge badge--{{ e.estado_conservacion|lower }}">{{ e.get_estado_conservacion_display }}</span></td>
+              <td class="num">{{ e.num_avistamientos }}</td>
+              <td class="row-actions">
+                <a href="{% url 'especies:detalle' e.pk %}">Ver</a>
+                {% if user.es_administrador %}
+                  <a href="{% url 'especies:editar' e.pk %}">Editar</a>
+                  <a href="{% url 'especies:eliminar' e.pk %}" class="is-danger">Eliminar</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="empty">
+                {% if hay_filtros %}Ninguna especie coincide con los filtros.{% else %}Todavía no hay especies cargadas.{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "MisionaBio/_paginacion.html" %}
+  </section>
+
+{% endblock %}

@@ -1,0 +1,78 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Inicio{% endblock %} · MisionaBio</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'MisionaBio/css/app.css' %}">
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+
+      <a href="{% url 'index' %}" class="brand" aria-label="MisionaBio, ir al inicio">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z" stroke="#C79A3E" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M6 18C9 13 13 9 18 6" stroke="#C79A3E" stroke-width="1.1" stroke-linecap="round"/>
+        </svg>
+        <span>MisionaBio</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Navegación principal">
+        <a href="{% url 'index' %}"{% if request.resolver_match.url_name == 'index' %} aria-current="page"{% endif %}>Inicio</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'especies:lista' %}"{% if request.resolver_match.namespace == 'especies' %} aria-current="page"{% endif %}>Especies</a>
+          <a href="{% url 'avistamientos:lista' %}"{% if request.resolver_match.namespace == 'avistamientos' %} aria-current="page"{% endif %}>Avistamientos</a>
+        {% endif %}
+      </nav>
+
+      <div class="user-box">
+        {% if user.is_authenticated %}
+          <span class="user-box__name">{{ user.get_username }}{% if user.rol %} <small>· {{ user.rol }}</small>{% endif %}</span>
+          {# Desde Django 5 el logout debe hacerse por POST #}
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--ghost btn--sm">Cerrar sesión</button>
+          </form>
+        {% else %}
+          <a href="{% url 'login' %}" class="btn btn--ghost btn--sm">Iniciar sesión</a>
+        {% endif %}
+      </div>
+
+    </div>
+  </header>
+
+  <main id="contenido" class="site-main">
+    <div class="container">
+
+      {% if messages %}
+        <div class="messages" role="status" aria-live="polite">
+          {% for message in messages %}
+            <div class="message message--{{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>MisionaBio · Registro de especies nativas y avistamientos de Misiones</p>
+    </div>
+  </footer>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

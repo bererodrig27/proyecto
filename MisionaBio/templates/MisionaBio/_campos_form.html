@@ -1,0 +1,17 @@
+{# Renderiza todos los campos de un ModelForm con el estilo del sitio #}
+{% if form.non_field_errors %}
+  <div class="message message--error" role="alert">
+    {% for error in form.non_field_errors %}{{ error }} {% endfor %}
+  </div>
+{% endif %}
+
+<div class="form-grid">
+  {% for field in form.visible_fields %}
+    <div class="field{% if field.errors %} field--invalid{% endif %}">
+      <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="req" aria-hidden="true"> *</span>{% endif %}</label>
+      {{ field }}
+      {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+      {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+    </div>
+  {% endfor %}
+</div>

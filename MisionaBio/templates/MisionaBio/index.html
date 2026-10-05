@@ -1,0 +1,62 @@
+{% extends "MisionaBio/base.html" %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+
+  <section class="hero">
+    <h1>Biodiversidad de Misiones, a un clic.</h1>
+    <p>Consultá y administrá el registro de especies nativas y los avistamientos reportados en la provincia.</p>
+  </section>
+
+  {% if user.is_authenticated %}
+
+    <section class="crud-grid" aria-label="Gestión de registros">
+
+      <article class="card crud-card">
+        <div class="crud-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z" stroke="#C79A3E" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M6 18C9 13 13 9 18 6" stroke="#C79A3E" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h2>Especies</h2>
+        <p>Fichas de las especies nativas: nombre científico y común, familia, estado de conservación e imagen.</p>
+        <div class="crud-card__actions">
+          <a href="{% url 'especies:lista' %}" class="btn btn--primary">Ver listado</a>
+          {% if user.es_administrador %}
+            <a href="{% url 'especies:crear' %}" class="btn btn--outline">Nueva especie</a>
+          {% endif %}
+        </div>
+      </article>
+
+      <article class="card crud-card">
+        <div class="crud-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="#C79A3E" stroke-width="1.5" stroke-linejoin="round"/>
+            <circle cx="12" cy="9.5" r="2.5" stroke="#C79A3E" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <h2>Avistamientos</h2>
+        <p>Registros de observaciones: especie, fecha, ubicación, fuente y estado de verificación.</p>
+        <div class="crud-card__actions">
+          <a href="{% url 'avistamientos:lista' %}" class="btn btn--primary">Ver listado</a>
+          {% if user.es_administrador %}
+            <a href="{% url 'avistamientos:crear' %}" class="btn btn--outline">Nuevo avistamiento</a>
+          {% endif %}
+        </div>
+      </article>
+
+    </section>
+
+  {% else %}
+
+    <section class="card" style="max-width: 32rem;">
+      <h2>Ingresá para continuar</h2>
+      <p style="color: var(--ink-soft); margin-bottom: 1.2rem;">Necesitás iniciar sesión para consultar las especies y los avistamientos.</p>
+      <a href="{% url 'login' %}" class="btn btn--primary">Iniciar sesión</a>
+    </section>
+
+  {% endif %}
+
+{% endblock %}

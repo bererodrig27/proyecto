@@ -1,0 +1,50 @@
+# Entorno virtual
+env/
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# Django
+*.log
+local_settings.py
+
+# Archivos generados por usuarios
+media/
+
+# Variables de entorno y credenciales
+.env
+.env.*
+!.env.example
+
+# Docker - datos locales
+.docker/
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporales
+*.tmp
+*.temp
+*.bak
+*~
+
+# Tests / cobertura
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/

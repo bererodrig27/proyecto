@@ -1,0 +1,230 @@
+{% extends "MisionaBio/base.html" %}
+
+{% block title %}Avistamientos{% endblock %}
+
+{% block content %}
+
+  <div class="page-header">
+    <div>
+      <h1>Avistamientos</h1>
+
+      <p>
+        {% if hay_filtros %}
+          {{ total }} avistamiento{{ total|pluralize }} con los filtros aplicados.
+        {% else %}
+          {{ total }} avistamiento{{ total|pluralize }} registrado{{ total|pluralize }}.
+        {% endif %}
+      </p>
+    </div>
+
+    <a
+      href="{% url 'avistamientos:crear' %}"
+      class="btn btn--primary">
+      + Nuevo avistamiento
+    </a>
+  </div>
+
+  <form
+    method="get"
+    class="filters card"
+    aria-label="Filtros de avistamientos">
+
+    <div class="field">
+      {{ form.q.label_tag }}
+      {{ form.q }}
+    </div>
+
+    <div class="field">
+      {{ form.fuente.label_tag }}
+      {{ form.fuente }}
+    </div>
+
+    <div class="field">
+      {{ form.estado.label_tag }}
+      {{ form.estado }}
+    </div>
+
+    <div class="field">
+      {{ form.zona.label_tag }}
+      {{ form.zona }}
+    </div>
+
+    <div class="field">
+      {{ form.desde.label_tag }}
+      {{ form.desde }}
+    </div>
+
+    <div class="field{% if form.hasta.errors %} field--invalid{% endif %}">
+      {{ form.hasta.label_tag }}
+      {{ form.hasta }}
+
+      {% for error in form.hasta.errors %}
+        <p class="field-error">{{ error }}</p>
+      {% endfor %}
+    </div>
+
+    <div class="field">
+      {{ form.por_pagina.label_tag }}
+      {{ form.por_pagina }}
+    </div>
+
+    <div class="filters__actions">
+      <button
+        type="submit"
+        class="btn btn--primary btn--sm">
+        Filtrar
+      </button>
+
+      {% if hay_filtros %}
+        <a
+          href="{% url 'avistamientos:lista' %}"
+          class="btn btn--outline btn--sm">
+          Limpiar
+        </a>
+      {% endif %}
+    </div>
+
+  </form>
+
+  <section
+    class="table-card"
+    aria-label="Listado de avistamientos">
+
+    <div class="table-scroll">
+
+      <table class="table">
+
+        <thead>
+          <tr>
+            <th scope="col">Fecha</th>
+            <th scope="col">Especie</th>
+            <th scope="col">Zona</th>
+            <th scope="col">Coordenadas</th>
+            <th scope="col">Fuente</th>
+            <th scope="col">Calidad</th>
+            <th scope="col">Imágenes</th>
+            <th scope="col">
+              <span class="sr-only">Acciones</span>
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {% for r in page_obj %}
+
+            <tr>
+
+              <td class="nowrap">
+                {{ r.fecha_avistamiento|date:"d/m/Y" }}
+              </td>
+
+              <td>
+                {% if r.especie %}
+
+                  <a
+                    href="{% url 'especies:detalle' r.especie.pk %}"
+                    class="sci-name">
+                    {{ r.especie.nombre_cientifico }}
+                  </a>
+
+                  {% if r.especie.nombre_comun %}
+                    <span class="sub">
+                      {{ r.especie.nombre_comun }}
+                    </span>
+                  {% endif %}
+
+                {% else %}
+
+                  <span class="badge badge--ne">
+                    Sin identificar
+                  </span>
+
+                {% endif %}
+              </td>
+
+              <td>
+                {{ r.zona|default:"—" }}
+              </td>
+
+              <td>
+                {{ r.latitud|floatformat:4 }},
+                {{ r.longitud|floatformat:4 }}
+              </td>
+
+              <td>
+                {{ r.fuente }}
+              </td>
+
+              <td>
+                <span class="badge badge--{{ r.estado_calidad|lower }}">
+                  {{ r.get_estado_calidad_display }}
+                </span>
+              </td>
+
+              <td>
+                {% if r.imagenes.all %}
+                  <span class="image-count">
+                    {{ r.imagenes.count }}
+                    {% if r.imagenes.count == 1 %}
+                      imagen
+                    {% else %}
+                      imágenes
+                    {% endif %}
+                  </span>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+
+              <td class="row-actions">
+
+                <a href="{% url 'avistamientos:detalle' r.pk %}">
+                  Ver
+                </a>
+
+                {% if user.es_administrador %}
+
+                  <a href="{% url 'avistamientos:editar' r.pk %}">
+                    Editar
+                  </a>
+
+                  <a
+                    href="{% url 'avistamientos:eliminar' r.pk %}"
+                    class="is-danger">
+                    Eliminar
+                  </a>
+
+                {% endif %}
+
+              </td>
+
+            </tr>
+
+          {% empty %}
+
+            <tr>
+              <td colspan="8" class="empty">
+
+                {% if hay_filtros %}
+                  Ningún avistamiento coincide con los filtros.
+                {% else %}
+                  Todavía no hay avistamientos cargados.
+                {% endif %}
+
+              </td>
+            </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+    {% include "MisionaBio/_paginacion.html" %}
+
+  </section>
+
+{% endblock %}

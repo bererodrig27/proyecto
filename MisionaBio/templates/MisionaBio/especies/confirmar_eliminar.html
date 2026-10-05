@@ -1,0 +1,36 @@
+{% extends "MisionaBio/base.html" %}
+
+{% block title %}Eliminar especie{% endblock %}
+
+{% block content %}
+
+  <div class="page-header">
+    <div>
+      <h1>Eliminar especie</h1>
+    </div>
+  </div>
+
+  <section class="card confirm-card">
+    <p class="confirm-card__lead">
+      ¿Seguro que querés eliminar <strong><em>{{ especie.nombre_cientifico }}</em></strong>{% if especie.nombre_comun %} ({{ especie.nombre_comun }}){% endif %}?
+    </p>
+
+    {% if total_registros %}
+      <div class="message message--warning" role="alert">
+        No se puede eliminar: la especie tiene {{ total_registros }} avistamiento{{ total_registros|pluralize }} asociado{{ total_registros|pluralize }}.
+        Reasigná o eliminá esos avistamientos primero.
+      </div>
+      <div class="form-actions">
+        <a href="{% url 'especies:detalle' especie.pk %}" class="btn btn--outline">Volver a la ficha</a>
+      </div>
+    {% else %}
+      <p class="confirm-card__note">Esta acción no se puede deshacer.</p>
+      <form method="post" class="form-actions">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--danger">Sí, eliminar</button>
+        <a href="{% url 'especies:detalle' especie.pk %}" class="btn btn--outline">Cancelar</a>
+      </form>
+    {% endif %}
+  </section>
+
+{% endblock %}
