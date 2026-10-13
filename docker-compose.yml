@@ -10,8 +10,12 @@ services:
       - "1521:1521"
     volumes:
       - oracle-data:/opt/oracle/oradata
-      - ./media:/app/media
-
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
 
   web:
     build: .
@@ -21,8 +25,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - oracle
-
+      oracle:
+        condition: service_healthy
 
 volumes:
   oracle-data:

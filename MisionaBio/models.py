@@ -17,9 +17,15 @@ from django.utils import timezone
 # =============================================================================
 
 class Rol(models.Model):
-    # Tabla "rol": id_rol (PK), nombre
+    ADMINISTRADOR = 'Administrador'
+    VISITANTE = 'Visitante'
+    NOMBRES_VALIDOS = (
+        (ADMINISTRADOR, 'Administrador'),
+        (VISITANTE, 'Visitante'),
+    )
+
     id_rol = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=50, unique=True)
+    nombre = models.CharField(max_length=50, unique=True, choices=NOMBRES_VALIDOS)
 
     class Meta:
         db_table = 'rol'
@@ -27,16 +33,16 @@ class Rol(models.Model):
     def __str__(self):
         return self.nombre
 
+    @classmethod
+    def administrador(cls):
+        return cls.objects.get(nombre=cls.ADMINISTRADOR)
+
+    @classmethod
+    def visitante(cls):
+        return cls.objects.get(nombre=cls.VISITANTE)
+
 
 class Usuario(AbstractUser):
-    # Mapeo contra la tabla "usuario" del modelo relacional:
-    #   id_usuario      -> id (PK autoincremental que ya provee AbstractUser)
-    #   nombre_usuario  -> username (heredado de AbstractUser, único)
-    #   email           -> email (heredado, lo hacemos obligatorio y único)
-    #   password_hash   -> password (Django lo guarda SIEMPRE hasheado, nunca en texto plano)
-    #   id_rol          -> rol (FK abajo)
-    #   fecha_alta      -> fecha_alta (DateField explícito, la ER pide DATE, no DATETIME)
-
     email = models.EmailField(unique=True, blank=False)
     rol = models.ForeignKey(
         Rol,
@@ -50,7 +56,10 @@ class Usuario(AbstractUser):
         db_table = 'usuario'
 
     def es_administrador(self):
-        return self.rol.nombre == 'Administrador'
+        return self.rol.nombre == Rol.ADMINISTRADOR
+
+    def es_visitante(self):
+        return self.rol.nombre == Rol.VISITANTE
 
 
 # =============================================================================
