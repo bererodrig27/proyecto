@@ -20,6 +20,8 @@ services:
   web:
     build: .
     container_name: django-app
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     volumes:
       - .:/app
     ports:
@@ -30,3 +32,4 @@ services:
 
 volumes:
   oracle-data:
+  
