@@ -1,1 +1,887 @@
 {% extends "MisionaBio/base.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+  .dash {
+    --d-ink:#1b2a22; --d-soft:#55645b; --d-muted:#7d887f;
+    --d-card:#fffefa; --d-line:#e6e0d0; --d-wash:#f6f2e7;
+    --d-g950:#0f221a; --d-g900:#12271e; --d-g700:#1f5a43; --d-g600:#2f6f54; --d-g100:#dcebe2;
+    --d-gold:#c79a3e; --d-gold-ink:#7a5a14;
+    --d-serif:"Fraunces", Georgia, "Times New Roman", serif;
+    --d-sans:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --d-r:16px;
+    color:var(--d-ink); font-family:var(--d-sans);
+    padding-bottom:2rem;
+  }
+  .dash [hidden] { display:none !important; }
+
+  /* ---------- Encabezado y pestañas ---------- */
+  .dash .d-head { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:1rem 1.5rem; margin:.4rem 0 1.4rem; }
+  .dash .d-eyebrow { margin:0 0 .35rem; font-size:.74rem; letter-spacing:.14em; text-transform:uppercase; font-weight:600; color:var(--d-gold-ink); }
+  .dash .d-title { margin:0; font:600 clamp(2rem,4.5vw,2.9rem)/1.05 var(--d-serif); letter-spacing:-.015em; color:var(--d-ink); }
+  .dash .d-sub { display:flex; align-items:center; gap:.55rem; margin:.65rem 0 0; font-size:.92rem; color:var(--d-soft); }
+  .dash .d-live { flex:none; width:9px; height:9px; border-radius:50%; background:#2fa36b; animation:d-pulse 2s infinite; }
+  @keyframes d-pulse { 0% { box-shadow:0 0 0 0 rgba(47,163,107,.55); } 70% { box-shadow:0 0 0 9px rgba(47,163,107,0); } 100% { box-shadow:0 0 0 0 rgba(47,163,107,0); } }
+
+  .dash .d-tabs { display:inline-flex; gap:.25rem; padding:.3rem; background:var(--d-wash); border:1px solid var(--d-line); border-radius:999px; }
+  .dash .d-tab { display:inline-flex; align-items:center; gap:.5rem; border:0; background:transparent; color:var(--d-soft); font:600 .92rem var(--d-sans); padding:.62rem 1.2rem; border-radius:999px; cursor:pointer; transition:background .2s, color .2s, box-shadow .2s; }
+  .dash .d-tab svg { width:18px; height:18px; }
+  .dash .d-tab:hover { color:var(--d-ink); }
+  .dash .d-tab[aria-selected="true"] { background:var(--d-g900); color:#fbf6e8; box-shadow:0 4px 14px rgba(18,39,30,.28); }
+  .dash .d-tab:focus-visible, .dash .d-seg button:focus-visible, .dash .d-lista button:focus-visible, .dash .d-field select:focus-visible { outline:2px solid var(--d-gold); outline-offset:2px; }
+
+  /* ---------- Tarjetas de números ---------- */
+  .dash .d-kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(215px, 1fr)); gap:1rem; margin-bottom:1rem; }
+  .dash .d-kpi { position:relative; overflow:hidden; background:var(--d-card); border:1px solid var(--d-line); border-radius:var(--d-r); padding:1.15rem 1.25rem 1.1rem; transition:transform .25s, box-shadow .25s; animation:d-rise .6s both; animation-delay:calc(var(--i, 0) * 70ms); }
+  .dash .d-kpi:hover { transform:translateY(-3px); box-shadow:0 14px 30px -14px rgba(18,39,30,.28); }
+  .dash .d-kpi__top { display:flex; align-items:center; gap:.6rem; margin-bottom:.85rem; }
+  .dash .d-kpi__icon { flex:none; display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:var(--d-g100); color:var(--d-g700); }
+  .dash .d-kpi__icon svg { width:18px; height:18px; }
+  .dash .d-kpi__label { font-size:.76rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--d-soft); }
+  .dash .d-kpi__value { font:600 clamp(2.5rem,5vw,3.3rem)/1 var(--d-serif); letter-spacing:-.02em; font-variant-numeric:lining-nums tabular-nums; }
+  .dash .d-kpi__sub { margin:.65rem 0 0; font-size:.86rem; color:var(--d-soft); }
+  .dash .d-kpi__sub strong { color:var(--d-ink); font-weight:600; }
+  .dash .d-kpi--feature { background:linear-gradient(155deg, var(--d-g900), var(--d-g950)); border-color:var(--d-g900); color:#fbf6e8; }
+  .dash .d-kpi--feature .d-kpi__icon { background:rgba(199,154,62,.18); color:#e3bf72; }
+  .dash .d-kpi--feature .d-kpi__label, .dash .d-kpi--feature .d-kpi__sub { color:#c9d6cd; }
+  .dash .d-kpi--feature .d-kpi__sub strong { color:#fbf6e8; }
+  .dash .d-kpi--feature .d-kpi__value { color:#f0c978; }
+  .dash .d-kpi__mark { position:absolute; right:-14px; bottom:-18px; width:110px; height:110px; color:#fff; opacity:.06; pointer-events:none; }
+  .dash .d-kpi__dot { display:inline-block; width:8px; height:8px; margin-left:.15rem; border-radius:50%; background:#2fa36b; animation:d-pulse 2s infinite; vertical-align:middle; }
+  .dash .d-kpi.is-updated { animation:d-flash 1.4s ease; }
+  @keyframes d-flash { 0% { box-shadow:0 0 0 0 rgba(199,154,62,.65); } 70% { box-shadow:0 0 0 12px rgba(199,154,62,0); } 100% { box-shadow:0 0 0 0 rgba(199,154,62,0); } }
+  @keyframes d-rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+
+  /* ---------- Paneles y grilla ---------- */
+  .dash .d-grid { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:1rem; }
+  .dash .d-span-4 { grid-column:span 4; }
+  .dash .d-span-6 { grid-column:span 6; }
+  .dash .d-span-8 { grid-column:span 8; }
+  .dash .d-span-12 { grid-column:span 12; }
+  @media (max-width:960px) { .dash .d-span-4, .dash .d-span-6, .dash .d-span-8 { grid-column:span 12; } }
+
+  .dash .d-panel { min-width:0; background:var(--d-card); border:1px solid var(--d-line); border-radius:var(--d-r); padding:1.15rem 1.25rem 1.25rem; }
+  .dash .d-panel__head { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:.6rem 1rem; margin-bottom:.6rem; }
+  .dash .d-panel h2 { margin:0; font:600 1.12rem/1.25 var(--d-serif); letter-spacing:-.005em; color:var(--d-ink); }
+  .dash .d-hint { margin:.2rem 0 0; font-size:.82rem; color:var(--d-muted); }
+  .dash .d-link { font-size:.85rem; font-weight:600; color:var(--d-g700); text-decoration:none; }
+  .dash .d-link:hover { text-decoration:underline; }
+
+  .dash .d-chart { width:100%; height:280px; }
+  .dash .d-chart > .d-empty { height:100%; display:grid; place-items:center; }
+  .dash .d-empty { padding:2rem 1rem; text-align:center; color:var(--d-muted); font-size:.92rem; }
+
+  .dash .d-seg { display:inline-flex; padding:2px; border:1px solid var(--d-line); border-radius:999px; background:var(--d-wash); }
+  .dash .d-seg button { border:0; background:transparent; font:600 .8rem var(--d-sans); color:var(--d-soft); padding:.38rem .85rem; border-radius:999px; cursor:pointer; }
+  .dash .d-seg button[aria-pressed="true"] { background:var(--d-card); color:var(--d-ink); box-shadow:0 1px 3px rgba(18,39,30,.18); }
+
+  .dash .d-donut { position:relative; height:210px; }
+  .dash .d-donut .d-chart { height:100%; }
+  .dash .d-donut__center { position:absolute; inset:0; display:grid; place-content:center; text-align:center; pointer-events:none; }
+  .dash .d-donut__center strong { font:600 2rem/1 var(--d-serif); }
+  .dash .d-donut__center span { margin-top:.25rem; font-size:.78rem; color:var(--d-soft); }
+  .dash .d-legend { list-style:none; margin:.9rem 0 0; padding:0; display:grid; gap:.5rem; }
+  .dash .d-legend li { display:grid; grid-template-columns:auto 1fr auto auto; align-items:center; gap:.6rem; font-size:.9rem; }
+  .dash .d-legend__chip { width:12px; height:12px; border-radius:4px; }
+  .dash .d-legend__n { font-weight:600; }
+  .dash .d-legend__pct { min-width:3.2ch; text-align:right; font-size:.82rem; color:var(--d-muted); }
+
+  /* ---------- Tabla de últimos registros ---------- */
+  .dash .d-table-wrap { overflow-x:auto; margin:0 -.25rem; }
+  .dash .d-table { width:100%; min-width:640px; border-collapse:collapse; font-size:.92rem; }
+  .dash .d-table th { text-align:left; padding:.55rem .75rem; font-size:.74rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--d-muted); border-bottom:1px solid var(--d-line); }
+  .dash .d-table td { padding:.8rem .75rem; vertical-align:middle; border-bottom:1px solid var(--d-line); }
+  .dash .d-table tbody tr:last-child td { border-bottom:0; }
+  .dash .d-table tbody tr:hover { background:var(--d-wash); }
+  .dash .d-sp a { font-weight:600; color:var(--d-ink); text-decoration:none; }
+  .dash .d-sp a:hover { text-decoration:underline; }
+  .dash .d-sp small { display:block; font-size:.8rem; font-style:italic; color:var(--d-muted); }
+  .dash .d-badge { display:inline-block; padding:.2rem .6rem; border-radius:999px; font-size:.74rem; font-weight:600; white-space:nowrap; }
+  .dash .d-badge--PENDIENTE { background:#fdf0cf; color:#6b4d00; }
+  .dash .d-badge--VALIDADO { background:#d9efd9; color:#0b550b; }
+  .dash .d-badge--CORREGIDO { background:#dce9fa; color:#14468a; }
+
+  /* ---------- Mapa ---------- */
+  .dash .d-mapa { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:1rem; }
+  @media (max-width:1000px) { .dash .d-mapa { grid-template-columns:1fr; } }
+  .dash .d-mapa__bar { display:flex; flex-wrap:wrap; align-items:center; gap:.7rem 1rem; margin-bottom:.85rem; }
+  .dash .d-field { display:inline-flex; align-items:center; gap:.5rem; font-size:.82rem; font-weight:600; color:var(--d-soft); }
+  .dash .d-field select { max-width:220px; padding:.42rem 2rem .42rem .7rem; font:500 .88rem var(--d-sans); color:var(--d-ink); background-color:var(--d-card); border:1px solid var(--d-line); border-radius:10px; }
+  .dash .d-btn { margin-left:auto; padding:.45rem .95rem; font:600 .82rem var(--d-sans); color:var(--d-ink); background:var(--d-card); border:1px solid var(--d-line); border-radius:999px; cursor:pointer; }
+  .dash .d-btn:hover { background:var(--d-wash); }
+  .dash .d-aviso { margin:0 0 .85rem; padding:.8rem 1rem; font-size:.88rem; line-height:1.5; color:#5b4300; background:#fdf0cf; border:1px solid #ecd28a; border-radius:12px; }
+  .dash .d-aviso code { padding:.1rem .35rem; font-size:.84rem; background:rgba(0,0,0,.06); border-radius:5px; }
+  .dash .d-mapa__stage { position:relative; overflow:hidden; border:1px solid var(--d-line); border-radius:14px;
+    background:radial-gradient(circle at 1px 1px, rgba(18,39,30,.09) 1px, transparent 1.6px) 0 0 / 22px 22px, #ece9dc; }
+  .dash .d-chart--mapa { height:clamp(460px, 76vh, 820px); }
+  .dash .d-mapa__vacio { position:absolute; inset:0; display:grid; place-items:center; padding:1rem; text-align:center; color:var(--d-soft); background:rgba(255,254,250,.7); }
+  .dash .d-mapa__foot { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem 1.2rem; margin-top:.85rem; font-size:.8rem; color:var(--d-soft); }
+  .dash .d-ramp { display:inline-flex; align-items:center; gap:.5rem; }
+  .dash .d-ramp__bar { width:140px; height:10px; border-radius:5px; background:linear-gradient(90deg, #c9b3ee, #ad8ae4, #9166d6, #7544c2, #5a2fa3, #42207d); }
+  .dash .d-dot { display:inline-block; width:10px; height:10px; margin-right:.35rem; vertical-align:-1px; border-radius:50%; background:#e0a526; border:1.5px solid var(--d-ink); }
+  .dash .d-stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:.5rem; margin:.8rem 0 1rem; }
+  .dash .d-stats div { padding:.6rem .5rem; text-align:center; background:var(--d-wash); border-radius:12px; }
+  .dash .d-stats strong { display:block; font:600 1.45rem/1.1 var(--d-serif); }
+  .dash .d-stats span { font-size:.72rem; letter-spacing:.05em; text-transform:uppercase; color:var(--d-soft); }
+  .dash .d-lista { list-style:none; margin:.6rem 0 0; padding:0; display:grid; gap:.3rem; max-height:480px; overflow:auto; }
+  .dash .d-lista button { width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; gap:.6rem; padding:.55rem .65rem; text-align:left; font:500 .9rem var(--d-sans); color:var(--d-ink); background:transparent; border:1px solid transparent; border-radius:10px; cursor:pointer; }
+  .dash .d-lista button:hover { background:var(--d-wash); border-color:var(--d-line); }
+  .dash .d-lista .d-n { padding:.1rem .55rem; font-size:.8rem; font-weight:700; color:#5a2fa3; background:#efe8fb; border-radius:999px; }
+
+  @media (prefers-reduced-motion:reduce) { .dash *, .dash *::before { animation:none !important; transition:none !important; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash" id="dash"
+     data-url-datos="{% url 'dashboard_datos' %}"
+     data-geojson="{% static 'MisionaBio/geo/misiones.geojson' %}">
+
+  <header class="d-head">
+    <div>
+      <p class="d-eyebrow">Panel de control</p>
+      <h1 class="d-title">Dashboard</h1>
+      <p class="d-sub">
+        <span class="d-live" aria-hidden="true"></span>
+        <span>Datos en vivo · actualizado a las <time id="dash-actualizado">{{ kpis.actualizado }}</time></span>
+      </p>
+    </div>
+
+    <div class="d-tabs" role="tablist" aria-label="Vista del dashboard">
+      <button type="button" role="tab" id="tab-resumen" class="d-tab" data-panel="resumen" aria-selected="true" aria-controls="panel-resumen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/></svg>
+        Resumen
+      </button>
+      <button type="button" role="tab" id="tab-mapa" class="d-tab" data-panel="mapa" aria-selected="false" aria-controls="panel-mapa" tabindex="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        Mapa
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================ RESUMEN ============================ -->
+  <section id="panel-resumen" role="tabpanel" aria-labelledby="tab-resumen">
+
+    <div class="d-kpis">
+      <article class="d-kpi d-kpi--feature" style="--i:0">
+        <svg class="d-kpi__mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z"/></svg>
+        <div class="d-kpi__top">
+          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z"/><path d="M6 18C9 13 13 9 18 6"/></svg></span>
+          <span class="d-kpi__label">Especies</span>
+        </div>
+        <div class="d-kpi__value" data-kpi="especies" data-count="{{ kpis.especies }}">{{ kpis.especies }}</div>
+        <p class="d-kpi__sub"><strong data-kpi="especies_con_avistamientos" data-count="{{ kpis.especies_con_avistamientos }}">{{ kpis.especies_con_avistamientos }}</strong> con avistamientos</p>
+      </article>
+
+      <article class="d-kpi" style="--i:1">
+        <div class="d-kpi__top">
+          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          <span class="d-kpi__label">Avistamientos</span>
+        </div>
+        <div class="d-kpi__value" data-kpi="avistamientos" data-count="{{ kpis.avistamientos }}">{{ kpis.avistamientos }}</div>
+        <p class="d-kpi__sub">Registrados en toda la provincia</p>
+      </article>
+
+      <article class="d-kpi" style="--i:2">
+        <div class="d-kpi__top">
+          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="d-kpi__label">Últimas 24 hs <span class="d-kpi__dot" aria-hidden="true"></span></span>
+        </div>
+        <div class="d-kpi__value" data-kpi="ultimas_24h" data-count="{{ kpis.ultimas_24h }}">{{ kpis.ultimas_24h }}</div>
+        <p class="d-kpi__sub">Avistamientos cargados desde ayer a esta hora</p>
+      </article>
+
+      <article class="d-kpi" style="--i:3">
+        <div class="d-kpi__top">
+          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><path d="M8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2"/><path d="m9 14 2 2 4-4"/></svg></span>
+          <span class="d-kpi__label">Por validar</span>
+        </div>
+        <div class="d-kpi__value" data-kpi="pendientes" data-count="{{ kpis.pendientes }}">{{ kpis.pendientes }}</div>
+        <p class="d-kpi__sub">Esperan la revisión de un administrador</p>
+      </article>
+    </div>
+
+    <div class="d-grid">
+
+      <section class="d-panel d-span-8" aria-labelledby="h-mensual">
+        <header class="d-panel__head">
+          <div>
+            <h2 id="h-mensual">Avistamientos por mes</h2>
+            <p class="d-hint">Según la fecha en que ocurrió cada avistamiento.</p>
+          </div>
+          <div class="d-seg" role="group" aria-label="Período del gráfico">
+            <button type="button" data-meses="12" aria-pressed="true">12 meses</button>
+            <button type="button" data-meses="24" aria-pressed="false">24 meses</button>
+            <button type="button" data-meses="36" aria-pressed="false">36 meses</button>
+          </div>
+        </header>
+        <div class="d-chart" id="chart-mensual" role="img" aria-label="Avistamientos por mes"></div>
+      </section>
+
+      <section class="d-panel d-span-4" aria-labelledby="h-estado">
+        <header class="d-panel__head">
+          <div>
+            <h2 id="h-estado">Estado de validación</h2>
+            <p class="d-hint">Qué parte de los registros ya fue revisada.</p>
+          </div>
+        </header>
+        <div class="d-donut">
+          <div class="d-chart" id="chart-estado" role="img" aria-label="Avistamientos según su estado de validación"></div>
+          <div class="d-donut__center"><strong id="estado-total">0</strong><span>avistamientos</span></div>
+        </div>
+        <ul class="d-legend" id="legend-estado"></ul>
+      </section>
+
+      <section class="d-panel d-span-6" aria-labelledby="h-top">
+        <header class="d-panel__head">
+          <div>
+            <h2 id="h-top">Especies más avistadas</h2>
+            <p class="d-hint">Las 6 con más registros.</p>
+          </div>
+        </header>
+        <div class="d-chart" id="chart-top" role="img" aria-label="Especies más avistadas"></div>
+      </section>
+
+      <section class="d-panel d-span-6" aria-labelledby="h-clases">
+        <header class="d-panel__head">
+          <div>
+            <h2 id="h-clases">Especies por clase</h2>
+            <p class="d-hint">Cuántas especies del catálogo hay en cada grupo.</p>
+          </div>
+        </header>
+        <div class="d-chart" id="chart-clases" role="img" aria-label="Especies por clase taxonómica"></div>
+      </section>
+
+      <section class="d-panel d-span-12" aria-labelledby="h-ultimos">
+        <header class="d-panel__head">
+          <div>
+            <h2 id="h-ultimos">Últimos registros cargados</h2>
+            <p class="d-hint">Lo más reciente que entró al sistema.</p>
+          </div>
+          <a class="d-link" href="{% url 'avistamientos:lista' %}">Ver todos →</a>
+        </header>
+        <div class="d-table-wrap">
+          <table class="d-table">
+            <thead>
+              <tr><th scope="col">Especie</th><th scope="col">Zona</th><th scope="col">Avistado</th><th scope="col">Estado</th><th scope="col">Cargado</th></tr>
+            </thead>
+            <tbody>
+              {% for r in ultimos %}
+              <tr>
+                <td class="d-sp"><a href="{{ r.url }}">{{ r.especie }}</a>{% if r.cientifico %}<small>{{ r.cientifico }}</small>{% endif %}</td>
+                <td>{{ r.zona|default:"—" }}</td>
+                <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                <td><span class="d-badge d-badge--{{ r.estado }}">{{ r.estado_nombre }}</span></td>
+                <td>hace {{ r.hace }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="d-empty">Todavía no hay avistamientos cargados.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </section>
+
+  <!-- ============================== MAPA ============================== -->
+  <section id="panel-mapa" role="tabpanel" aria-labelledby="tab-mapa" hidden>
+    <div class="d-mapa">
+
+      <div class="d-panel">
+        <div class="d-mapa__bar">
+          <div class="d-seg" role="group" aria-label="Cómo mostrar los avistamientos">
+            <button type="button" data-modo="celdas" aria-pressed="false">Celdas</button>
+            <button type="button" data-modo="puntos" aria-pressed="false">Puntos</button>
+            <button type="button" data-modo="ambos" aria-pressed="true">Ambos</button>
+          </div>
+          <label class="d-field">Especie
+            <select id="mapa-especie"><option value="">Todas</option></select>
+          </label>
+          <button type="button" class="d-btn" id="mapa-reset">Restablecer vista</button>
+        </div>
+
+        <p class="d-aviso" id="mapa-aviso" role="status" hidden>
+          <strong>Se muestran las ubicaciones sin el contorno de la provincia.</strong>
+          No se pudo cargar el archivo del mapa. Para dibujarlo, ejecutá <code>python generar_geojson_misiones.py</code>
+          en la raíz del proyecto y recargá la página.<br>
+          <small>Detalle: <span id="mapa-aviso-detalle"></span></small>
+        </p>
+
+        <div class="d-mapa__stage">
+          <div class="d-chart d-chart--mapa" id="mapa-chart" role="img" aria-label="Mapa de Misiones con los avistamientos"></div>
+          <div class="d-mapa__vacio" id="mapa-vacio" hidden>No hay avistamientos con coordenadas para mostrar.</div>
+        </div>
+
+        <div class="d-mapa__foot">
+          <div class="d-ramp" id="mapa-ramp">
+            <span>Menos</span><span class="d-ramp__bar" aria-hidden="true"></span><span>Más</span>
+            <span>(hasta <strong id="mapa-ramp-max">1</strong> por celda de ~11 km)</span>
+          </div>
+          <span><span class="d-dot" aria-hidden="true"></span>Cada punto es un lugar de avistamiento</span>
+        </div>
+      </div>
+
+      <aside class="d-panel" aria-labelledby="h-ubic">
+        <h2 id="h-ubic">Ubicaciones</h2>
+        <p class="d-hint">Tocá una para verla en el mapa.</p>
+        <div class="d-stats">
+          <div><strong id="mapa-stat-av">0</strong><span>Avistam.</span></div>
+          <div><strong id="mapa-stat-ub">0</strong><span>Lugares</span></div>
+          <div><strong id="mapa-stat-es">0</strong><span>Especies</span></div>
+        </div>
+        <ul class="d-lista" id="mapa-lista"></ul>
+      </aside>
+
+    </div>
+  </section>
+
+  {{ datos|json_script:"dash-data" }}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  const root = document.getElementById("dash");
+  const dataEl = document.getElementById("dash-data");
+  if (!root || !dataEl) return;
+
+  const $ = (sel, ctx = root) => ctx.querySelector(sel);
+  const $$ = (sel, ctx = root) => Array.from(ctx.querySelectorAll(sel));
+  const DATA = JSON.parse(dataEl.textContent);
+  const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TIENE_ECHARTS = typeof window.echarts !== "undefined";
+  const nf = new Intl.NumberFormat("es-AR");
+
+  // Los textos vienen de scraping y de usuarios: se escapan antes de armar HTML.
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+  const cap = (s) => { s = String(s ?? ""); return s.charAt(0).toUpperCase() + s.slice(1); };
+  const fechaAR = (iso) => { const [y, m, d] = String(iso).split("-"); return y && m && d ? `${d}/${m}/${y}` : iso; };
+  const seguro = (nombre, fn) => { try { fn(); } catch (err) { console.error(`[dashboard] ${nombre}:`, err); } };
+
+  const COLOR = {
+    ink: "#1b2a22", soft: "#55645b", muted: "#7d887f", card: "#fffefa", line: "#e6e0d0",
+    verde: "#12805a", verdeOscuro: "#0b5f43", dorado: "#c79a3e", doradoOscuro: "#a67c1f",   // verde y dorado oscuro validados con el script de dataviz
+  };
+  const ESTADO_COLOR = { PENDIENTE: "#fab219", VALIDADO: "#0ca30c", CORREGIDO: "#2a78d6" };
+  const RAMPA = ["#c9b3ee", "#ad8ae4", "#9166d6", "#7544c2", "#5a2fa3", "#42207d"];
+  const FUENTE = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
+  const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  const MESES_LARGO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+  const TEXTO = { fontFamily: FUENTE, color: COLOR.soft, fontSize: 12 };
+  const TOOLTIP = {
+    backgroundColor: COLOR.card, borderColor: COLOR.line, borderWidth: 1, padding: [8, 12], confine: true,
+    textStyle: { color: COLOR.ink, fontSize: 12, fontFamily: FUENTE },
+    extraCssText: "box-shadow:0 10px 28px rgba(18,39,30,.16);border-radius:10px;",
+  };
+  const ANIM = REDUCE ? { animation: false } : { animation: true, animationDuration: 800, animationEasing: "cubicOut" };
+
+  const charts = [];
+  function crearGrafico(el) {
+    if (!el) return null;
+    if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos. Revisá tu conexión a internet."); return null; }
+    const chart = echarts.init(el, null, { renderer: "canvas" });
+    charts.push(chart);
+    new ResizeObserver(() => chart.resize()).observe(el);
+    return chart;
+  }
+  function mensaje(el, texto) {
+    el.textContent = "";
+    const d = document.createElement("div");
+    d.className = "d-empty";
+    d.textContent = texto;
+    el.appendChild(d);
+  }
+
+  /* ---------------------------------------------------------------
+     Números animados y actualización en vivo
+  --------------------------------------------------------------- */
+  function contar(el, hasta, animar = true) {
+    const desde = Number(el.dataset.shown || 0);
+    el.dataset.count = String(hasta);
+    if (!animar || REDUCE || desde === hasta) { el.textContent = nf.format(hasta); el.dataset.shown = String(hasta); return; }
+    const t0 = performance.now(), dur = 900;
+    const paso = (ahora) => {
+      const k = Math.min(1, (ahora - t0) / dur);
+      el.textContent = nf.format(Math.round(desde + (hasta - desde) * (1 - Math.pow(1 - k, 3))));
+      if (k < 1) requestAnimationFrame(paso); else el.dataset.shown = String(hasta);
+    };
+    requestAnimationFrame(paso);
+  }
+  $$("[data-kpi]").forEach((el) => { el.dataset.shown = "0"; contar(el, Number(el.dataset.count)); });
+
+  async function refrescar() {
+    if (document.hidden) return;
+    try {
+      const resp = await fetch(root.dataset.urlDatos, { headers: { Accept: "application/json" }, credentials: "same-origin" });
+      if (!resp.ok || !(resp.headers.get("content-type") || "").includes("application/json")) return;
+      const k = await resp.json();
+      $$("[data-kpi]").forEach((el) => {
+        const v = k[el.dataset.kpi];
+        if (typeof v !== "number" || v === Number(el.dataset.count)) return;
+        contar(el, v);
+        const tarjeta = el.closest(".d-kpi");
+        if (tarjeta) { tarjeta.classList.add("is-updated"); setTimeout(() => tarjeta.classList.remove("is-updated"), 1600); }
+      });
+      const hora = $("#dash-actualizado");
+      if (hora && k.actualizado) hora.textContent = k.actualizado;
+    } catch (_) { /* sin conexión: se reintenta en el próximo ciclo */ }
+  }
+  setInterval(refrescar, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refrescar(); });
+
+  /* ---------------------------------------------------------------
+     Gráficos del resumen
+  --------------------------------------------------------------- */
+  const mensual = (() => {
+    const el = $("#chart-mensual");
+    let chart = null, meses = 12;
+
+    function dibujar() {
+      if (!chart) return;
+      const serie = DATA.mensual.slice(-meses);
+      const total = serie.reduce((a, p) => a + p.n, 0);
+      el.setAttribute("aria-label", `Avistamientos por mes en los últimos ${meses} meses: ${nf.format(total)} en total.`);
+      const etiquetas = serie.map((p, i) => (i === 0 || p.m === 1) ? `${MESES[p.m - 1]}\n${p.y}` : MESES[p.m - 1]);
+      chart.setOption({
+        ...ANIM,
+        textStyle: TEXTO,
+        title: total === 0
+          ? { text: "Sin avistamientos en este período", left: "center", top: "middle", textStyle: { color: COLOR.muted, fontSize: 13, fontWeight: 500, fontFamily: FUENTE } }
+          : { show: false },
+        grid: { left: 6, right: 8, top: 26, bottom: 4, containLabel: true },
+        tooltip: {
+          ...TOOLTIP, trigger: "axis",
+          axisPointer: { type: "shadow", shadowStyle: { color: "rgba(47,111,84,.08)" } },
+          formatter: (ps) => {
+            const s = serie[ps[0].dataIndex];
+            return `<strong>${cap(MESES_LARGO[s.m - 1])} ${s.y}</strong><br>${nf.format(s.n)} avistamiento${s.n === 1 ? "" : "s"}`;
+          },
+        },
+        xAxis: {
+          type: "category", data: etiquetas, axisTick: { show: false },
+          axisLine: { lineStyle: { color: COLOR.line } },
+          axisLabel: { color: COLOR.muted, interval: meses <= 12 ? 0 : "auto", lineHeight: 15 },
+        },
+        yAxis: { type: "value", minInterval: 1, axisLabel: { color: COLOR.muted }, splitLine: { lineStyle: { color: COLOR.line } } },
+        series: [{
+          type: "bar", data: serie.map((p) => p.n), barMaxWidth: 30,
+          itemStyle: { color: COLOR.verde, borderRadius: [5, 5, 0, 0] },
+          emphasis: { itemStyle: { color: COLOR.verdeOscuro } },
+          label: { show: meses <= 12, position: "top", color: COLOR.ink, fontSize: 11, formatter: (p) => (p.value ? nf.format(p.value) : "") },
+          animationDelay: (i) => i * 35,
+        }],
+      }, true);
+    }
+
+    function iniciar() {
+      chart = crearGrafico(el);
+      $$("[data-meses]").forEach((b) => b.addEventListener("click", () => {
+        meses = Number(b.dataset.meses);
+        $$("[data-meses]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        dibujar();
+      }));
+      dibujar();
+    }
+    return { iniciar };
+  })();
+
+  function dibujarEstados() {
+    const el = $("#chart-estado"), lista = $("#legend-estado");
+    const items = DATA.estados;
+    const total = items.reduce((a, e) => a + e.n, 0);
+    $("#estado-total").textContent = nf.format(total);
+
+    lista.textContent = "";
+    items.forEach((e) => {
+      const li = document.createElement("li");
+      const chip = document.createElement("span");
+      chip.className = "d-legend__chip";
+      chip.style.background = ESTADO_COLOR[e.clave] || COLOR.muted;
+      const nombre = document.createElement("span");
+      nombre.textContent = e.nombre;
+      const n = document.createElement("span");
+      n.className = "d-legend__n";
+      n.textContent = nf.format(e.n);
+      const pct = document.createElement("span");
+      pct.className = "d-legend__pct";
+      pct.textContent = total ? `${Math.round((e.n / total) * 100)}%` : "0%";
+      li.append(chip, nombre, n, pct);
+      lista.appendChild(li);
+    });
+
+    if (!total) { mensaje(el, "Todavía no hay avistamientos."); return; }
+    const chart = crearGrafico(el);
+    if (!chart) return;
+    el.setAttribute("aria-label", "Estado de validación: " + items.map((e) => `${e.nombre} ${e.n}`).join(", "));
+    chart.setOption({
+      ...ANIM,
+      textStyle: TEXTO,
+      tooltip: { ...TOOLTIP, trigger: "item", formatter: (p) => `<strong>${esc(p.name)}</strong><br>${nf.format(p.value)} · ${p.percent}%` },
+      series: [{
+        type: "pie", radius: ["62%", "86%"], center: ["50%", "50%"], avoidLabelOverlap: false,
+        label: { show: false }, labelLine: { show: false },
+        itemStyle: { borderColor: COLOR.card, borderWidth: 3, borderRadius: 6 },
+        emphasis: { scale: true, scaleSize: 5 },
+        data: items.filter((e) => e.n > 0).map((e) => ({ name: e.nombre, value: e.n, itemStyle: { color: ESTADO_COLOR[e.clave] } })),
+      }],
+    });
+  }
+
+  function barrasHorizontales(id, filas, color, textoTooltip, vacioTexto) {
+    const el = $(id);
+    if (!filas.length) { mensaje(el, vacioTexto); return; }
+    el.style.height = `${Math.min(300, Math.max(150, filas.length * 46 + 24))}px`;   // sin aire de sobra con pocas filas
+    const chart = crearGrafico(el);
+    if (!chart) return;
+    el.setAttribute("aria-label", filas.map((f) => `${cap(f.nombre)}: ${f.n}`).join(". "));
+    chart.setOption({
+      ...ANIM,
+      textStyle: TEXTO,
+      grid: { left: 8, right: 40, top: 4, bottom: 4, containLabel: true },
+      tooltip: { ...TOOLTIP, trigger: "axis", axisPointer: { type: "none" }, formatter: (ps) => textoTooltip(filas[ps[0].dataIndex]) },
+      xAxis: { type: "value", show: false, max: (v) => Math.max(1, Math.ceil(v.max * 1.12)) },
+      yAxis: {
+        type: "category", inverse: true,
+        // Los nombres largos se acortan acá; el nombre completo queda en el tooltip.
+        data: filas.map((f) => { const t = cap(f.nombre); return t.length > 24 ? `${t.slice(0, 23)}…` : t; }),
+        axisTick: { show: false }, axisLine: { show: false },
+        axisLabel: { color: COLOR.ink, margin: 12 },
+      },
+      series: [{
+        type: "bar", data: filas.map((f) => f.n), barWidth: 14,
+        itemStyle: { color, borderRadius: [0, 6, 6, 0] },
+        showBackground: true, backgroundStyle: { color: "rgba(18,39,30,.05)", borderRadius: 6 },
+        label: { show: true, position: "right", color: COLOR.ink, fontWeight: 600, formatter: (p) => nf.format(p.value) },
+        animationDelay: (i) => i * 60,
+      }],
+    });
+  }
+
+  seguro("mensual", () => mensual.iniciar());
+  seguro("estados", dibujarEstados);
+  seguro("top", () => barrasHorizontales("#chart-top", DATA.top, COLOR.verde,
+    (f) => `<strong>${esc(cap(f.nombre))}</strong>${f.cientifico ? `<br><i style="opacity:.7">${esc(f.cientifico)}</i>` : ""}<br>${nf.format(f.n)} avistamiento${f.n === 1 ? "" : "s"}`,
+    "Todavía no hay avistamientos con especie asignada."));
+  seguro("clases", () => barrasHorizontales("#chart-clases", DATA.clases, COLOR.doradoOscuro,
+    (f) => `<strong>${esc(cap(f.nombre))}</strong><br>${nf.format(f.n)} especie${f.n === 1 ? "" : "s"}`,
+    "Todavía no hay especies cargadas."));
+
+  /* ---------------------------------------------------------------
+     Mapa (se arma la primera vez que se abre la pestaña)
+  --------------------------------------------------------------- */
+  const mapa = (() => {
+    const PASO = 0.1;   // lado de cada celda, en grados (~11 km)
+    const CIUDADES = [  // referencias aproximadas, solo para orientarse: [nombre, lon, lat, lado de la etiqueta]
+      ["Puerto Iguazú", -54.5736, -25.5991, "right"], ["Eldorado", -54.6347, -26.4000, "right"],
+      ["Bernardo de Irigoyen", -53.6481, -26.2517, "left"], ["Oberá", -55.1199, -27.4871, "right"],
+      ["Posadas", -55.9008, -27.3621, "right"], ["Apóstoles", -55.7525, -27.9086, "right"],
+      ["Jardín América", -55.2275, -27.0392, "right"],
+    ];
+    const REG = DATA.registros.map(([lon, lat, zona, fecha, especie]) => ({ lon, lat, zona, fecha, especie }));
+    const el = $("#mapa-chart");
+    const st = { chart: null, iniciado: false, geo: false, modo: "ambos", especie: "", grupos: null, idx: {}, vista: null };
+
+    const claveCelda = (lon, lat) => `${Math.floor(lon / PASO)}|${Math.floor(lat / PASO)}`;
+    const colorCelda = (n, max) => max <= 1 ? RAMPA[2] : RAMPA[Math.min(RAMPA.length - 1, Math.round(((n - 1) / (max - 1)) * (RAMPA.length - 1)))];
+
+    // Agrupa los avistamientos por lugar exacto (puntos) y por cuadrícula (celdas).
+    function agrupar(lista) {
+      const puntos = new Map(), celdas = new Map();
+      const sumar = (mapaGrupos, clave, base, r) => {
+        let g = mapaGrupos.get(clave);
+        if (!g) { g = { ...base, n: 0, zonas: new Map(), especies: new Set(), items: [] }; mapaGrupos.set(clave, g); }
+        g.n += 1;
+        if (r.zona) g.zonas.set(r.zona, (g.zonas.get(r.zona) || 0) + 1);
+        g.especies.add(r.especie);
+        if (g.items.length < 5) g.items.push({ especie: r.especie, fecha: r.fecha });
+      };
+      for (const r of lista) {
+        sumar(puntos, `${r.lon.toFixed(5)}|${r.lat.toFixed(5)}`, { lon: r.lon, lat: r.lat }, r);
+        const ix = Math.floor(r.lon / PASO), iy = Math.floor(r.lat / PASO);
+        sumar(celdas, `${ix}|${iy}`, { clave: `${ix}|${iy}`, lon0: +(ix * PASO).toFixed(6), lat0: +(iy * PASO).toFixed(6) }, r);
+      }
+      // Se pasa a objetos simples: ECharts clona los datos y no conserva Map ni Set.
+      const cerrar = (m) => [...m.values()].map((g) => {
+        const zonas = [...g.zonas.entries()].sort((a, b) => b[1] - a[1]).map(([z]) => z);
+        const nombre = zonas.slice(0, 2).join(" · ") || "Ubicación sin nombre";
+        return { clave: g.clave, lon: g.lon, lat: g.lat, lon0: g.lon0, lat0: g.lat0, n: g.n, nombre,
+                 info: { nombre, n: g.n, nEspecies: g.especies.size, items: g.items } };
+      }).sort((a, b) => b.n - a.n);
+      return { puntos: cerrar(puntos), celdas: cerrar(celdas) };
+    }
+
+    function tooltip(p) {
+      const info = p.data && p.data.info;
+      if (!info) return "";
+      const items = info.items.map((i) => `<li>${esc(cap(i.especie))} <span style="opacity:.65">· ${esc(fechaAR(i.fecha))}</span></li>`).join("");
+      const resto = info.n - info.items.length;
+      const sub = p.seriesName === "Celdas" ? `<div style="opacity:.65;font-size:11px">Celda de ~${Math.round(PASO * 111)} km</div>` : "";
+      return `<strong>${esc(info.nombre)}</strong>${sub}
+        <div style="margin-top:2px">${nf.format(info.n)} avistamiento${info.n === 1 ? "" : "s"} · ${info.nEspecies} especie${info.nEspecies === 1 ? "" : "s"}</div>
+        <ul style="margin:.4rem 0 0;padding-left:1.1rem">${items}</ul>
+        ${resto > 0 ? `<div style="opacity:.65;margin-top:2px">y ${nf.format(resto)} más…</div>` : ""}`;
+    }
+
+    function serieCeldas(celdas, max, cs) {
+      return {
+        name: "Celdas", type: "custom", coordinateSystem: cs, z: 1,
+        ...(cs === "cartesian2d" ? { encode: { x: 0, y: 1 } } : {}),
+        data: celdas.map((c) => ({ name: c.nombre, value: [c.lon0, c.lat0, c.n], info: c.info })),
+        renderItem: (params, api) => {
+          const a = api.coord([api.value(0), api.value(1)]);
+          const b = api.coord([api.value(0) + PASO, api.value(1) + PASO]);
+          return {
+            type: "rect",
+            shape: { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), width: Math.abs(b[0] - a[0]), height: Math.abs(b[1] - a[1]), r: 3 },
+            style: { fill: colorCelda(api.value(2), max), stroke: "rgba(255,255,255,.85)", lineWidth: 1, opacity: 0.93 },
+            emphasis: { style: { stroke: COLOR.ink, lineWidth: 2, opacity: 1 } },
+          };
+        },
+      };
+    }
+    function serieReferencias(cs) {
+      return {
+        name: "Referencias", type: "scatter", coordinateSystem: cs, silent: true, z: 4,
+        data: CIUDADES.map(([nombre, lon, lat, lado]) => ({ name: nombre, value: [lon, lat], label: { position: lado } })),
+        symbol: "circle", symbolSize: 6,
+        itemStyle: { color: COLOR.ink, borderColor: "#fff", borderWidth: 1.5 },
+        label: { show: true, position: "right", distance: 12, formatter: "{b}", color: COLOR.ink, fontSize: 11, fontFamily: FUENTE, textBorderColor: "rgba(255,255,255,.9)", textBorderWidth: 3 },
+        labelLayout: { hideOverlap: true },
+      };
+    }
+    function seriePuntos(puntos, cs) {
+      return {
+        name: "Puntos", type: "effectScatter", coordinateSystem: cs, zlevel: 1,
+        data: puntos.map((p) => ({ name: p.nombre, value: [p.lon, p.lat, p.n], info: p.info })),
+        symbolSize: (v) => Math.min(9 + (v[2] - 1) * 3, 20),
+        showEffectOn: REDUCE ? "emphasis" : "render",
+        rippleEffect: { brushType: "stroke", scale: 3.2, period: 4 },
+        itemStyle: { color: "#e0a526", borderColor: COLOR.ink, borderWidth: 1.5, shadowBlur: 8, shadowColor: "rgba(224,165,38,.7)" },
+        emphasis: { scale: true },
+      };
+    }
+
+    function armarOpcion(series) {
+      const opcion = { ...ANIM, textStyle: TEXTO, series, tooltip: { ...TOOLTIP, trigger: "item", formatter: tooltip } };
+      if (st.geo) {
+        opcion.geo = {
+          // layoutCenter + layoutSize conservan las proporciones del mapa (con left/right/top/bottom se estira).
+          map: "Misiones", roam: true, layoutCenter: ["50%", "50%"], layoutSize: "100%",
+          aspectScale: 0.89, scaleLimit: { min: 1, max: 20 },
+          label: { show: false },
+          itemStyle: { areaColor: "#cfe8d8", borderColor: COLOR.verde, borderWidth: 1.6, shadowColor: "rgba(18,39,30,.22)", shadowBlur: 14, shadowOffsetY: 4 },
+          emphasis: { label: { show: false }, itemStyle: { areaColor: "#cfe8d8" } },
+          select: { disabled: true },
+          regions: st.vista.contexto,
+        };
+      } else {
+        const eje = (nombre, min, max) => ({
+          type: "value", name: nombre, min, max, nameLocation: "middle", nameGap: 34, nameTextStyle: { color: COLOR.muted },
+          axisLabel: { color: COLOR.muted, formatter: (v) => v.toFixed(1) }, splitLine: { lineStyle: { color: "rgba(18,39,30,.12)" } },
+        });
+        opcion.grid = { left: 58, right: 22, top: 18, bottom: 48 };
+        opcion.xAxis = eje("Longitud", -56.1, -53.6);
+        opcion.yAxis = eje("Latitud", -28.3, -25.4);
+      }
+      return opcion;
+    }
+
+    function dibujar() {
+      if (!st.chart) return;
+      const lista = st.especie ? REG.filter((r) => r.especie === st.especie) : REG;
+      const g = agrupar(lista);
+      st.grupos = g;
+      const max = g.celdas.reduce((m, c) => Math.max(m, c.n), 1);
+      const cs = st.geo ? "geo" : "cartesian2d";
+      const series = [];
+      st.idx = {};
+      if (st.modo !== "puntos") { st.idx.celdas = series.length; series.push(serieCeldas(g.celdas, max, cs)); }
+      series.push(serieReferencias(cs));
+      if (st.modo !== "celdas") { st.idx.puntos = series.length; series.push(seriePuntos(g.puntos, cs)); }
+      st.chart.setOption(armarOpcion(series), true);
+      encuadrar();
+      actualizarPanel(lista, g, max);
+    }
+
+    // Acerca el mapa para que Misiones ocupe todo el espacio, aunque el archivo traiga provincias vecinas.
+    // Se mide cuánto ocupa Misiones en pantalla y se ajusta el zoom en esa proporción.
+    function encuadrar() {
+      if (!st.geo || !st.chart || !st.vista) return;
+      const ancho = st.chart.getWidth(), alto = st.chart.getHeight();
+      if (ancho < 50 || alto < 50) return;   // pestaña oculta: se reintenta al mostrarla
+      const [[x0, y1], [x1, y0]] = st.vista.encuadre;
+      const a = st.chart.convertToPixel({ geoIndex: 0 }, [x0, y1]);
+      const b = st.chart.convertToPixel({ geoIndex: 0 }, [x1, y0]);
+      if (!a || !b) return;
+      const w = Math.abs(b[0] - a[0]), h = Math.abs(b[1] - a[1]);
+      if (!w || !h) return;
+      const geo = (st.chart.getOption().geo || [])[0] || {};
+      const zoom = (geo.zoom || 1) * Math.min((ancho - 30) / w, (alto - 30) / h);
+      st.chart.setOption({ geo: { zoom, center: [(x0 + x1) / 2, (y0 + y1) / 2] } });
+    }
+
+    function actualizarPanel(lista, g, max) {
+      $("#mapa-stat-av").textContent = nf.format(lista.length);
+      $("#mapa-stat-ub").textContent = nf.format(g.puntos.length);
+      $("#mapa-stat-es").textContent = nf.format(new Set(lista.map((r) => r.especie)).size);
+      $("#mapa-ramp-max").textContent = nf.format(max);
+      $("#mapa-ramp").hidden = st.modo === "puntos" || !lista.length;
+      $("#mapa-vacio").hidden = lista.length > 0;
+      el.setAttribute("aria-label", `Mapa de Misiones con ${nf.format(lista.length)} avistamientos en ${nf.format(g.puntos.length)} lugares.`);
+
+      const ul = $("#mapa-lista");
+      ul.textContent = "";
+      g.puntos.slice(0, 14).forEach((p) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        const nombre = document.createElement("span");
+        nombre.textContent = p.nombre;
+        const n = document.createElement("span");
+        n.className = "d-n";
+        n.textContent = nf.format(p.n);
+        b.append(nombre, n);
+        b.addEventListener("click", () => resaltar(p));
+        li.appendChild(b);
+        ul.appendChild(li);
+      });
+    }
+
+    function resaltar(p) {
+      if (!st.chart) return;
+      const usaPuntos = st.idx.puntos !== undefined;
+      const serie = usaPuntos ? st.idx.puntos : st.idx.celdas;
+      if (serie === undefined) return;
+      const i = usaPuntos
+        ? st.grupos.puntos.indexOf(p)
+        : st.grupos.celdas.findIndex((c) => c.clave === claveCelda(p.lon, p.lat));
+      if (i < 0) return;
+      const px = st.chart.convertToPixel(st.geo ? { geoIndex: 0 } : { xAxisIndex: 0, yAxisIndex: 0 }, [p.lon, p.lat]);
+      st.chart.dispatchAction({ type: "downplay" });
+      st.chart.dispatchAction({ type: "highlight", seriesIndex: serie, dataIndex: i });
+      if (px) st.chart.dispatchAction({ type: "showTip", seriesIndex: serie, dataIndex: i, x: px[0], y: px[1] });
+    }
+
+    async function cargarContorno() {
+      const url = root.dataset.geojson;
+      const resp = await fetch(url, { cache: "no-cache" });
+      if (!resp.ok) throw new Error(`No se encontró ${url} (HTTP ${resp.status}).`);
+      const gj = await resp.json();
+      if (!gj || !Array.isArray(gj.features) || !gj.features.length) throw new Error("El archivo del contorno no tiene regiones.");
+      echarts.registerMap("Misiones", gj);
+
+      const props = (f) => f.properties || {};
+      const principal = gj.features.find((f) => props(f).rol === "principal")
+        || gj.features.find((f) => props(f).name === "Misiones") || gj.features[0];
+
+      // Caja que encuadra a Misiones (con un margen), para que ocupe el mapa aunque haya vecinos.
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      const recorrer = (c) => {
+        if (typeof c[0] === "number") { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
+        else c.forEach(recorrer);
+      };
+      recorrer(principal.geometry.coordinates);
+      const mx = (x1 - x0) * 0.04, my = (y1 - y0) * 0.04;
+
+      // Las regiones vecinas (si el archivo las trae) se pintan atenuadas.
+      const contexto = gj.features.filter((f) => f !== principal).map((f) => ({
+        name: props(f).name,
+        itemStyle: { areaColor: "#ece9dc", borderColor: "#b9c2b8", borderWidth: 1, borderType: "dashed" },
+        emphasis: { itemStyle: { areaColor: "#ece9dc" }, label: { show: false } },
+        label: { show: false }, select: { disabled: true },
+      }));
+      return { encuadre: [[x0 - mx, y1 + my], [x1 + mx, y0 - my]], contexto };
+    }
+
+    function avisar(detalle) {
+      $("#mapa-aviso").hidden = false;
+      $("#mapa-aviso-detalle").textContent = detalle;
+    }
+
+    function llenarEspecies() {
+      const sel = $("#mapa-especie");
+      [...new Set(REG.map((r) => r.especie))].sort((a, b) => a.localeCompare(b, "es")).forEach((nombre) => {
+        const o = document.createElement("option");
+        o.value = nombre;
+        o.textContent = cap(nombre);
+        sel.appendChild(o);
+      });
+      sel.addEventListener("change", () => { st.especie = sel.value; dibujar(); });
+    }
+
+    function enlazar() {
+      $$("[data-modo]").forEach((b) => b.addEventListener("click", () => {
+        st.modo = b.dataset.modo;
+        $$("[data-modo]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        dibujar();
+      }));
+      $("#mapa-reset").addEventListener("click", () => dibujar());   // vuelve a armar el mapa: restablece zoom y posición
+    }
+
+    async function iniciar() {
+      llenarEspecies();
+      enlazar();
+      if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos. Revisá tu conexión a internet."); return; }
+      st.chart = echarts.init(el);
+      new ResizeObserver(() => { st.chart.resize(); if (st.grupos) encuadrar(); }).observe(el);
+      st.chart.showLoading({ text: "Cargando mapa…", color: COLOR.dorado, textColor: COLOR.soft, maskColor: "rgba(255,254,250,.7)" });
+      try {
+        st.vista = await cargarContorno();
+        st.geo = true;
+      } catch (err) {
+        console.warn("[dashboard] mapa sin contorno:", err);
+        st.geo = false;
+        avisar(err.message);
+      }
+      st.chart.hideLoading();
+      dibujar();
+    }
+
+    function activar() {
+      if (!st.iniciado) { st.iniciado = true; seguro("mapa", iniciar); }
+      else if (st.chart) st.chart.resize();
+    }
+    return { activar };
+  })();
+
+  /* ---------------------------------------------------------------
+     Pestañas Resumen / Mapa
+  --------------------------------------------------------------- */
+  const tabs = $$('[role="tab"]');
+  function mostrar(nombre, { foco = false, hash = true } = {}) {
+    tabs.forEach((t) => {
+      const activa = t.dataset.panel === nombre;
+      t.setAttribute("aria-selected", String(activa));
+      t.tabIndex = activa ? 0 : -1;
+      if (activa && foco) t.focus();
+    });
+    $$('[role="tabpanel"]').forEach((p) => { p.hidden = p.id !== `panel-${nombre}`; });
+    if (hash) history.replaceState(null, "", nombre === "mapa" ? "#mapa" : location.pathname + location.search);
+    requestAnimationFrame(() => {
+      if (nombre === "mapa") mapa.activar(); else charts.forEach((c) => c.resize());
+    });
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => mostrar(t.dataset.panel));
+    t.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      mostrar(tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length].dataset.panel, { foco: true });
+    });
+  });
+  if (location.hash === "#mapa") mostrar("mapa", { hash: false });
+})();
+</script>
+{% endblock %}

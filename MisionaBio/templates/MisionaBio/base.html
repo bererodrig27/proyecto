@@ -32,6 +32,7 @@
         {% if user.is_authenticated %}
           <a href="{% url 'especies:lista' %}"{% if request.resolver_match.namespace == 'especies' %} aria-current="page"{% endif %}>Especies</a>
           <a href="{% url 'avistamientos:lista' %}"{% if request.resolver_match.namespace == 'avistamientos' %} aria-current="page"{% endif %}>Avistamientos</a>
+          <a href="{% url 'dashboard' %}"{% if request.resolver_match.url_name == 'dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
         {% endif %}
       </nav>
 
