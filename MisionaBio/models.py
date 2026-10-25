@@ -1,13 +1,11 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.utils import timezone
-from django.contrib.auth.models import AbstractUser, UserManager  # sumá UserManager al import existente
-
 
 
 # =============================================================================
@@ -38,6 +36,7 @@ class Rol(models.Model):
     @classmethod
     def visitante(cls):
         return cls.objects.get(nombre=cls.VISITANTE)
+
 
 class UsuarioManager(UserManager):
     """Al crear un superusuario por consola, le asigna el rol Administrador."""
@@ -665,5 +664,4 @@ class Auditoria(models.Model):
 
     def __str__(self):
         return f'{self.operacion} en {self.tabla_afectada} #{self.id_registro_afectado}'
-
-
+    

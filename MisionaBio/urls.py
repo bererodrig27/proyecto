@@ -32,4 +32,5 @@ urlpatterns = [
 
     path('especies/', include((especies_patterns, 'especies'), namespace='especies')),
     path('avistamientos/', include((avistamientos_patterns, 'avistamientos'), namespace='avistamientos')),
+    path('registro/', views.registro, name='registro'),
 ]
