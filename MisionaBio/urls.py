@@ -29,6 +29,7 @@ urlpatterns = [
     path('gestion/nuevo-admin/', views.registro_admin, name='registro_admin'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('dashboard/datos/', views.dashboard_datos, name='dashboard_datos'),
 
     path('especies/', include((especies_patterns, 'especies'), namespace='especies')),
     path('avistamientos/', include((avistamientos_patterns, 'avistamientos'), namespace='avistamientos')),

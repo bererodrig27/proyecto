@@ -1,4 +1,5 @@
 # MisionaBio/views.py
+from datetime import date, datetime, timedelta
 from functools import wraps
 from django.contrib.auth import login
 from django.contrib import messages
@@ -14,6 +15,14 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .forms import RegistroUsuarioForm
+from django.db.models import Count, ProtectedError, Q
+from django.db.models.functions import TruncMonth
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.timesince import timesince
+from django.views.decorators.http import require_GET
 
 from .forms import (
     AvistamientoFiltroForm,
@@ -93,9 +102,178 @@ def registro_admin(request):
     return render(request, 'MisionaBio/registro_admin.html', {'form': form})
 
 
+# -----------------------------------------------------------------------------
+# Dashboard
+# -----------------------------------------------------------------------------
+
+# Bounding box aproximado de Misiones: descarta coordenadas mal geocodificadas del scraping.
+MISIONES_LAT = (-28.3, -25.4)
+MISIONES_LON = (-56.1, -53.6)
+MAX_REGISTROS_MAPA = 5000   # tope de puntos que se envían al navegador
+MESES_SERIE = 36            # meses de historia para el gráfico por mes
+
+
+def _kpis():
+    """Números de las tarjetas. Los usa la página y el endpoint de actualización en vivo."""
+    ahora = timezone.now()
+    desde = ahora - timedelta(hours=24)
+    registros = Registro.objects
+    return {
+        'especies': Especie.objects.count(),
+        'especies_con_avistamientos': (
+            registros.filter(especie__isnull=False)
+            .aggregate(n=Count('especie', distinct=True))['n']
+        ),
+        'avistamientos': registros.count(),
+        # "Últimas 24 hs" = registros que se cargaron al sistema en ese lapso (fecha_carga),
+        # no los que ocurrieron en ese lapso: fecha_avistamiento es solo una fecha, sin hora.
+        'ultimas_24h': registros.filter(noticia__fecha_scraping__gte=desde).count(),
+        'pendientes': registros.filter(estado_calidad=Registro.EstadoCalidad.PENDIENTE).count(),
+        'actualizado': timezone.localtime(ahora).strftime('%H:%M:%S'),
+    }
+
+
+def _serie_mensual(hoy, cantidad=MESES_SERIE):
+    """Avistamientos por mes (según fecha_avistamiento), con ceros en los meses vacíos."""
+    base = hoy.year * 12 + (hoy.month - 1) - (cantidad - 1)
+    meses = [((base + i) // 12, (base + i) % 12 + 1) for i in range(cantidad)]
+    inicio = date(meses[0][0], meses[0][1], 1)
+
+    filas = (
+        Registro.objects
+        .filter(fecha_avistamiento__gte=inicio)
+        .annotate(mes=TruncMonth('fecha_avistamiento'))
+        .values('mes')
+        .annotate(n=Count('id_registro'))
+        .order_by('mes')
+    )
+    conteo = {}
+    for fila in filas:
+        mes = fila['mes']
+        if isinstance(mes, datetime):   # algunos motores devuelven datetime
+            mes = mes.date()
+        conteo[(mes.year, mes.month)] = fila['n']
+    return [{'y': y, 'm': m, 'n': conteo.get((y, m), 0)} for y, m in meses]
+
+
+def _estados():
+    conteo = {
+        f['estado_calidad']: f['n']
+        for f in (
+            Registro.objects.order_by()
+            .values('estado_calidad')
+            .annotate(n=Count('id_registro'))
+        )
+    }
+    return [
+        {'clave': clave, 'nombre': nombre, 'n': conteo.get(clave, 0)}
+        for clave, nombre in Registro.EstadoCalidad.choices
+    ]
+
+
+def _clases(limite=8):
+    filas = (
+        Especie.objects.order_by()
+        .values('clase_taxonomica')
+        .annotate(n=Count('id_especie'))
+        .order_by('-n', 'clase_taxonomica')[:limite]
+    )
+    # Oracle guarda el texto vacío como NULL: ambos casos van a "Sin clasificar".
+    return [{'nombre': f['clase_taxonomica'] or 'Sin clasificar', 'n': f['n']} for f in filas]
+
+
+def _top_especies(limite=6):
+    filas = (
+        Registro.objects.filter(especie__isnull=False).order_by()
+        .values('especie__nombre_comun', 'especie__nombre_cientifico')
+        .annotate(n=Count('id_registro'))
+        .order_by('-n', 'especie__nombre_cientifico')[:limite]
+    )
+    return [
+        {
+            'nombre': f['especie__nombre_comun'] or f['especie__nombre_cientifico'],
+            'cientifico': f['especie__nombre_cientifico'] if f['especie__nombre_comun'] else '',
+            'n': f['n'],
+        }
+        for f in filas
+    ]
+
+
+def _registros_mapa():
+    """
+    Un registro por avistamiento: [longitud, latitud, zona, fecha ISO, especie].
+    Formato de ECharts (longitud primero). El agrupado en celdas/puntos lo hace el navegador,
+    así el filtro por especie del mapa no necesita pedirle nada al servidor.
+    """
+    filas = (
+        Registro.objects
+        .filter(ubicacion__latitud__range=MISIONES_LAT, ubicacion__longitud__range=MISIONES_LON)
+        .order_by('-fecha_avistamiento', '-id_registro')
+        .values_list(
+            'ubicacion__longitud', 'ubicacion__latitud', 'ubicacion__zona', 'fecha_avistamiento',
+            'especie__nombre_comun', 'especie__nombre_cientifico',
+        )[:MAX_REGISTROS_MAPA]
+    )
+    return [
+        [
+            float(lon),   # float(): DecimalField no se serializa a JSON directamente
+            float(lat),
+            zona or '',
+            fecha.isoformat() if fecha else '',
+            comun or cientifico or 'Especie sin identificar',
+        ]
+        for lon, lat, zona, fecha, comun, cientifico in filas
+    ]
+
+
+def _ultimos_cargados(limite=6):
+    registros = (
+    Registro.objects
+    .select_related('especie', 'ubicacion', 'noticia')
+    .order_by('-noticia__fecha_scraping', '-id_registro')[:limite]
+)
+    filas = []
+    for r in registros:
+        esp = r.especie
+        filas.append({
+            'url': reverse('avistamientos:detalle', args=[r.pk]),
+            'especie': (esp.nombre_comun or esp.nombre_cientifico) if esp else 'Especie sin identificar',
+            'cientifico': esp.nombre_cientifico if esp and esp.nombre_comun else '',
+            'zona': r.zona,
+            'fecha': r.fecha_avistamiento,
+            'estado': r.estado_calidad,
+            'estado_nombre': r.get_estado_calidad_display(),
+            'hace': (
+                'menos de un minuto'
+                if (timezone.now() - r.noticia.fecha_scraping).total_seconds() < 60
+                else timesince(r.noticia.fecha_scraping, depth=1)
+            ),
+        })
+    return filas
+
+
 @login_required
+@require_GET
 def dashboard(request):
-    return render(request, 'MisionaBio/dashboard.html')
+    datos = {
+        'mensual': _serie_mensual(timezone.localdate()),
+        'estados': _estados(),
+        'clases': _clases(),
+        'top': _top_especies(),
+        'registros': _registros_mapa(),
+    }
+    return render(request, 'MisionaBio/dashboard.html', {
+        'kpis': _kpis(),
+        'ultimos': _ultimos_cargados(),
+        'datos': datos,   # el template lo pasa al navegador con json_script (escapado)
+    })
+
+
+@login_required
+@require_GET
+def dashboard_datos(request):
+    """Números de las tarjetas en JSON: la página los consulta cada tanto para actualizarse sola."""
+    return JsonResponse(_kpis())
 
 
 # =============================================================================
