@@ -5,26 +5,25 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, ProtectedError, Q
+from django.db.models import Count, F, IntegerField, OuterRef, ProtectedError, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from .forms import (
     AvistamientoFiltroForm,
     AvistamientoForm,
     EspecieFiltroForm,
     EspecieForm,
-    ImagenFormSet,
-    RegistroUsuarioForm
+    RegistroUsuarioForm,
+    RegistroAdminForm,
 )
-from .models import Especie, Fuente, Registro
+from .models import Especie, Registro
 
 
 # =============================================================================
 # Utilidades
 # =============================================================================
-def _es_admin(user):
-    return user.is_authenticated and (user.is_superuser or user.es_administrador())
-
 def solo_admin(view):
     """
     Exige sesión iniciada Y rol Administrador (RNF05).
@@ -78,6 +77,16 @@ def registro(request):
         return redirect('index')
     return render(request, 'MisionaBio/registro.html', {'form': form})
 
+@solo_admin
+def registro_admin(request):
+    """Un administrador da de alta a otro. No inicia sesión con la cuenta nueva."""
+    form = RegistroAdminForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        usuario = form.save()
+        messages.success(request, f'Administrador «{usuario.username}» creado correctamente.')
+        return redirect('dashboard')
+    return render(request, 'MisionaBio/registro_admin.html', {'form': form})
+
 
 @login_required
 def dashboard(request):
@@ -94,11 +103,20 @@ def especie_lista(request):
     form.is_valid()  # los campos inválidos simplemente se ignoran
     cd = form.cleaned_data
 
-    # Con annotate(Count) Django ignora Meta.ordering, así que se ordena explícitamente
-    # (paginación estable).
+        # El conteo va en una subconsulta y no con annotate(Count): un GROUP BY sobre Especie
+    # incluiría la columna "descripcion" (NCLOB), que Oracle no permite agrupar (ORA-00932).
+    # Se ordena explícitamente para que la paginación sea estable.
+    avistamientos = (
+        Registro.objects
+        .filter(especie=OuterRef('pk'))
+        .order_by()
+        .values('especie')
+        .annotate(n=Count('pk'))
+        .values('n')
+    )
     especies = (
         Especie.objects
-        .annotate(num_avistamientos=Count('registros'))
+        .annotate(num_avistamientos=Coalesce(Subquery(avistamientos, output_field=IntegerField()), 0))
         .order_by('nombre_cientifico')
     )
 
@@ -127,7 +145,11 @@ def especie_lista(request):
 @login_required
 def especie_detalle(request, pk):
     especie = get_object_or_404(Especie, pk=pk)
-    registros = especie.registros.select_related('fuente').order_by('-fecha_avistamiento', '-id_registro')
+    registros = (
+        especie.registros
+        .select_related('noticia__fuente', 'ubicacion')
+        .order_by(F('fecha_avistamiento').desc(nulls_last=True), '-id_registro')
+    )
     return render(request, 'MisionaBio/especies/detalle.html', {
         'especie': especie,
         'registros': registros[:10],
@@ -200,7 +222,7 @@ def avistamiento_lista(request):
     form.is_valid()
     cd = form.cleaned_data
 
-    registros = Registro.objects.select_related('especie', 'fuente')
+    registros = Registro.objects.select_related('especie', 'ubicacion', 'noticia__fuente')
 
     if cd.get('q'):
         q = cd['q'].strip()
@@ -208,11 +230,11 @@ def avistamiento_lista(request):
             Q(especie__nombre_cientifico__icontains=q) | Q(especie__nombre_comun__icontains=q)
         )
     if cd.get('fuente'):
-        registros = registros.filter(fuente=cd['fuente'])
+        registros = registros.filter(noticia__fuente=cd['fuente'])
     if cd.get('estado'):
         registros = registros.filter(estado_calidad=cd['estado'])
     if cd.get('zona'):
-        registros = registros.filter(zona__icontains=cd['zona'].strip())
+        registros = registros.filter(ubicacion__zona__icontains=cd['zona'].strip())
     if cd.get('desde'):
         registros = registros.filter(fecha_avistamiento__gte=cd['desde'])
     if cd.get('hasta'):
@@ -233,73 +255,62 @@ def avistamiento_lista(request):
 @login_required
 def avistamiento_detalle(request, pk):
     registro = get_object_or_404(
-        Registro.objects.select_related('especie', 'fuente', 'usuario_curador').prefetch_related('imagenes'),
+        Registro.objects.select_related(
+            'especie', 'ubicacion', 'noticia__fuente',
+            'usuario_carga', 'usuario_validador', 'extraccion',
+        ),
         pk=pk,
     )
     return render(request, 'MisionaBio/avistamientos/detalle.html', {'registro': registro})
 
 
+@transaction.atomic
 def _guardar_avistamiento(request, form):
-    """Guarda el registro y deja constancia del curador cuando se valida/corrige (RNF10)."""
+    """
+    Guarda el avistamiento con su noticia y su ubicación (todo o nada) y deja
+    constancia de quién lo cargó y quién lo validó (RNF10).
+    """
     registro = form.save(commit=False)
-    if registro.estado_calidad in (Registro.EstadoCalidad.VALIDADO, Registro.EstadoCalidad.CORREGIDO):
-        registro.usuario_curador = request.user
-    else:
-        registro.usuario_curador = None
+    es_nuevo = registro.pk is None
+
+    registro.noticia = form.resolver_noticia()
+    registro.ubicacion = form.resolver_ubicacion()
+
+    if es_nuevo:
+        registro.usuario_carga = request.user
+
+    if registro.estado_calidad == Registro.EstadoCalidad.PENDIENTE:
+        registro.usuario_validador = None
+        registro.fecha_validacion = None
+    elif 'estado_calidad' in form.changed_data or not registro.usuario_validador_id:
+        # Validado, corregido o descartado: queda el responsable de la decisión.
+        registro.usuario_validador = request.user
+        registro.fecha_validacion = timezone.now()
+
     registro.save()
     return registro
 
 
-def _fuente_manual():
-    """Fuente "Carga manual": la única que puede usar un Visitante."""
-    fuente = Fuente.objects.filter(tipo=Fuente.Tipo.MANUAL).first()
-    if fuente is None:
-        fuente, _ = Fuente.objects.get_or_create(
-            nombre='Carga manual', defaults={'tipo': Fuente.Tipo.MANUAL},
-        )
-    return fuente
-
-
-
-@login_required
+@solo_admin
 def avistamiento_crear(request):
-    """Cualquier usuario con sesión puede cargar un avistamiento; solo el admin lo valida."""
-    es_admin = _es_admin(request.user)
-    initial = {}
-    instance = None
-
-    if es_admin:
-        fuente_manual = Fuente.objects.filter(tipo=Fuente.Tipo.MANUAL).first()
-        if fuente_manual:
-            initial['fuente'] = fuente_manual
-    else:
-        # Fuente y estado quedan fijados desde el inicio (no son editables para el Visitante).
-        instance = Registro(fuente=_fuente_manual(), estado_calidad=Registro.EstadoCalidad.PENDIENTE)
+    """
+    Carga manual: solo el Administrador. El registro nace VALIDADO y sin extracción
+    de IA (los avistamientos que llegan por scraping se revisan en ExtraccionIA).
+    """
+    initial = {'estado_calidad': Registro.EstadoCalidad.VALIDADO}
 
     # Permite llegar desde la ficha de una especie: /avistamientos/nuevo/?especie=3
     if request.GET.get('especie', '').isdigit():
         initial['especie'] = int(request.GET['especie'])
 
-    form = AvistamientoForm(request.POST or None, instance=instance, initial=initial, es_admin=es_admin)
-    formset = ImagenFormSet(request.POST or None, request.FILES or None, instance=instance)
-    if request.method == 'POST':
-        form_ok = form.is_valid()
-        formset_ok = formset.is_valid()
-        if form_ok and formset_ok:
-            # Todo o nada: no queda un avistamiento guardado sin sus fotos si algo falla.
-            with transaction.atomic():
-                registro = _guardar_avistamiento(request, form)
-                formset.instance = registro
-                formset.save()
-            if es_admin:
-                messages.success(request, 'El avistamiento se registró correctamente.')
-            else:
-                messages.success(request, 'Gracias: tu avistamiento se registró y quedó pendiente de validación.')
-            return redirect('avistamientos:detalle', pk=registro.pk)
+    form = AvistamientoForm(request.POST or None, initial=initial)
+    if request.method == 'POST' and form.is_valid():
+        registro = _guardar_avistamiento(request, form)
+        messages.success(request, 'El avistamiento se registró correctamente.')
+        return redirect('avistamientos:detalle', pk=registro.pk)
     return render(request, 'MisionaBio/avistamientos/form.html', {
         'form': form,
-        'formset': formset,
-        'es_admin': es_admin,
+        'es_admin': True,
         'titulo': 'Nuevo avistamiento',
         'boton': 'Registrar avistamiento',
     })
@@ -307,22 +318,16 @@ def avistamiento_crear(request):
 
 @solo_admin
 def avistamiento_editar(request, pk):
-    registro = get_object_or_404(Registro, pk=pk)
+    registro = get_object_or_404(
+        Registro.objects.select_related('noticia__fuente', 'ubicacion'), pk=pk,
+    )
     form = AvistamientoForm(request.POST or None, instance=registro)
-    formset = ImagenFormSet(request.POST or None, request.FILES or None, instance=registro)
-    if request.method == 'POST':
-        form_ok = form.is_valid()
-        formset_ok = formset.is_valid()
-        if form_ok and formset_ok:
-            with transaction.atomic():
-                registro = _guardar_avistamiento(request, form)
-                formset.instance = registro
-                formset.save()
-            messages.success(request, 'El avistamiento se actualizó correctamente.')
-            return redirect('avistamientos:detalle', pk=registro.pk)
+    if request.method == 'POST' and form.is_valid():
+        registro = _guardar_avistamiento(request, form)
+        messages.success(request, 'El avistamiento se actualizó correctamente.')
+        return redirect('avistamientos:detalle', pk=registro.pk)
     return render(request, 'MisionaBio/avistamientos/form.html', {
         'form': form,
-        'formset': formset,
         'registro': registro,
         'es_admin': True,
         'titulo': 'Editar avistamiento',
@@ -332,7 +337,9 @@ def avistamiento_editar(request, pk):
 
 @solo_admin
 def avistamiento_eliminar(request, pk):
-    registro = get_object_or_404(Registro.objects.select_related('especie', 'fuente'), pk=pk)
+    registro = get_object_or_404(
+        Registro.objects.select_related('especie', 'noticia__fuente'), pk=pk,
+    )
     if request.method == 'POST':
         registro.delete()
         messages.success(request, 'El avistamiento se eliminó.')

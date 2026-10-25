@@ -59,8 +59,13 @@ def marcar_procesada(url: str):
         f.write(url + "\n")
 
 
-def descubrir():
-    """Devuelve [(fuente, url)] nuevas y únicas (sin las ya procesadas), con tope por corrida."""
+def descubrir(ya_procesadas=None):
+    """Devuelve [(fuente, url)] nuevas y únicas, con tope por corrida.
+
+    `ya_procesadas` es el conjunto de URLs a saltear; con base de datos lo arma
+    guardar.urls_ya_procesadas() a partir de la tabla noticia. Si no se pasa, se usa
+    el archivo de texto (modo sin base de datos).
+    """
     candidatas = []
     for nombre, url_feed in config.FEEDS.items():
         candidatas += urls_de_feed(nombre, url_feed)
@@ -69,13 +74,14 @@ def descubrir():
             candidatas += urls_de_busqueda(nombre, base, termino)
     candidatas += [("Manual", u) for u in config.URLS_MANUALES]
 
-    ya = cargar_procesadas()
+    ya = cargar_procesadas() if ya_procesadas is None else ya_procesadas
     unicas, vistas = [], set()
     for fuente, url in candidatas:
-        if url not in ya and url not in vistas:
+        # noticia.url admite hasta 500 caracteres
+        if url not in ya and url not in vistas and len(url) <= 500:
             vistas.add(url)
             unicas.append((fuente, url))
     print(f"\nURLs encontradas: {len(candidatas)} | nuevas y únicas: {len(unicas)}")
     if len(unicas) > config.MAX_NOTAS_POR_CORRIDA:
         print("Se alcanzó el tope por corrida: volvé a ejecutar para seguir con las que faltan.")
-    return unicas[: config.MAX_NOTAS_POR_CORRIDA]
+    return unicas[: config.MAX_NOTAS_POR_CORRIDA]

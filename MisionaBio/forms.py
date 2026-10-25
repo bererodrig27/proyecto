@@ -1,9 +1,16 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 
-from .models import Especie, Fuente, Registro, Rol, Usuario, Imagen
-
-from django.forms import inlineformset_factory
+from .models import (
+    Especie,
+    Fuente,
+    Noticia,
+    Registro,
+    Rol,
+    Ubicacion,
+    Usuario,
+    _limpiar_espacios,
+)
 
 # =============================================================================
 # Usuarios (ya existente)
@@ -21,6 +28,16 @@ class RegistroUsuarioForm(UserCreationForm):
         usuario.email = self.cleaned_data['email']
         rol_visitante, _ = Rol.objects.get_or_create(nombre='Visitante')
         usuario.rol = rol_visitante
+        if commit:
+            usuario.save()
+        return usuario
+
+class RegistroAdminForm(RegistroUsuarioForm):
+    """Alta de administradores. Solo se usa desde una vista protegida por solo_admin."""
+
+    def save(self, commit=True):
+        usuario = super().save(commit=False)   # el padre le pone Visitante...
+        usuario.rol = Rol.objects.get_or_create(nombre=Rol.ADMINISTRADOR)[0]  # ...y acá lo pisamos
         if commit:
             usuario.save()
         return usuario
@@ -43,13 +60,15 @@ class EspecieForm(forms.ModelForm):
             'nombre_comun',
             'clase_taxonomica',
             'estado_conservacion',
-            'taxonomia',   # al final: ocupa todo el ancho del formulario
+            'taxonomia',
+            'descripcion',   # al final: ocupa todo el ancho del formulario
         ]
         widgets = {
             'nombre_cientifico': forms.TextInput(attrs={'placeholder': 'Panthera onca'}),
             'nombre_comun': forms.TextInput(attrs={'placeholder': 'Yaguareté'}),
             'clase_taxonomica': forms.TextInput(attrs={'placeholder': 'Mammalia', 'list': 'clases-sugeridas'}),
             'taxonomia': forms.TextInput(attrs={'placeholder': 'Animalia > Chordata > Mammalia > Carnivora > Felidae'}),
+            'descripcion': forms.Textarea(attrs={'rows': 4}),
         }
 
 
@@ -84,41 +103,169 @@ class EspecieFiltroForm(forms.Form):
 # =============================================================================
 
 class AvistamientoForm(forms.ModelForm):
+    """
+    Carga/edición manual de un avistamiento (solo Administrador).
+
+    Un avistamiento (Registro) depende de dos tablas más: la Noticia que lo respalda
+    (obligatoria) y la Ubicacion (opcional). Por eso el formulario pide esos datos en
+    campos propios y expone resolver_noticia() / resolver_ubicacion(), que la vista
+    llama dentro de una transacción para crear o reutilizar esas filas.
+    """
+
+    # --- Noticia que respalda el avistamiento ---
+    noticia_url = forms.URLField(
+        label='URL de la noticia', max_length=500,
+        widget=forms.URLInput(attrs={'placeholder': 'https://…'}),
+        help_text='Si la noticia ya está cargada, se reutiliza y no hace falta completar título ni medio.',
+    )
+    noticia_titulo = forms.CharField(label='Título de la noticia', max_length=300, required=False)
+    noticia_fuente = forms.ModelChoiceField(
+        label='Medio', required=False, queryset=Fuente.objects.order_by('nombre'),
+        empty_label='Seleccioná un medio',
+    )
+    noticia_fecha_publicacion = forms.DateField(
+        label='Fecha de publicación', required=False,
+        widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+    )
+
+    # --- Ubicación (opcional: se deja vacía si no se pudo ubicar el lugar) ---
+    lugar_nombre = forms.CharField(
+        label='Lugar', max_length=200, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Ej. Parque Nacional Iguazú'}),
+    )
+    lugar_zona = forms.CharField(
+        label='Zona', max_length=100, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Ej. Selva paranaense'}),
+    )
+    lugar_latitud = forms.FloatField(
+        label='Latitud', required=False, min_value=-90, max_value=90,
+        widget=forms.NumberInput(attrs={'step': 'any', 'placeholder': '-26.916700'}),
+        help_text='Entre -90 y 90. Misiones ronda -25 a -28.',
+    )
+    lugar_longitud = forms.FloatField(
+        label='Longitud', required=False, min_value=-180, max_value=180,
+        widget=forms.NumberInput(attrs={'step': 'any', 'placeholder': '-54.500000'}),
+        help_text='Entre -180 y 180. Misiones ronda -53 a -56.',
+    )
+    lugar_precision = forms.ChoiceField(
+        label='Precisión de la ubicación', required=False,
+        choices=Ubicacion.Precision.choices, initial=Ubicacion.Precision.APROXIMADA,
+    )
+
     class Meta:
         model = Registro
         fields = [
             'especie',
-            'fuente',
             'fecha_avistamiento',
-            'zona',
-            'latitud',
-            'longitud',
+            'tipo_registro',
             'estado_calidad',
+            'fragmento_origen',
         ]
         widgets = {
             'fecha_avistamiento': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-            'latitud': forms.NumberInput(attrs={'step': '0.000001', 'placeholder': '-26.916700'}),
-            'longitud': forms.NumberInput(attrs={'step': '0.000001', 'placeholder': '-54.500000'}),
-            'zona': forms.TextInput(attrs={'placeholder': 'Ej. Selva paranaense'}),
+            'tipo_registro': forms.TextInput(attrs={'placeholder': 'Ej. avistamiento directo, rastro, cámara trampa'}),
+            'fragmento_origen': forms.Textarea(attrs={'rows': 3}),
         }
         help_texts = {
-            'especie': 'Dejala vacía si todavía no se pudo identificar (queda pendiente de sugerencia).',
-            'latitud': 'Entre -90 y 90. Misiones ronda -25 a -28.',
-            'longitud': 'Entre -180 y 180. Misiones ronda -53 a -56.',
+            'especie': 'Dejala vacía si todavía no se pudo identificar.',
+            'fecha_avistamiento': 'Dejala vacía si la noticia no la precisa.',
+            'fragmento_origen': 'Texto de la noticia que respalda el avistamiento.',
         }
 
-    def __init__(self, *args, es_admin=True, **kwargs):
+    # Orden de aparición: avistamiento, noticia, ubicación y, al final, el fragmento
+    # (textarea de ancho completo).
+    field_order = [
+        'especie', 'fecha_avistamiento', 'tipo_registro', 'estado_calidad',
+        'noticia_url', 'noticia_titulo', 'noticia_fuente', 'noticia_fecha_publicacion',
+        'lugar_nombre', 'lugar_zona', 'lugar_latitud', 'lugar_longitud', 'lugar_precision',
+        'fragmento_origen',
+    ]
+
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['especie'].queryset = Especie.objects.order_by('nombre_cientifico')
         self.fields['especie'].empty_label = 'Sin identificar'
-        self.fields['fuente'].empty_label = 'Seleccioná una fuente'
 
-        if not es_admin:
-            # El Visitante no elige la fuente ni el estado de calidad: la vista los fija
-            # (fuente "Carga manual", estado "Pendiente") para no falsear la procedencia.
-            del self.fields['fuente']
-            del self.fields['estado_calidad']
-            self.order_fields(['especie', 'fecha_avistamiento', 'latitud', 'longitud', 'zona'])
+        # Al editar, los campos de noticia y ubicación se precargan desde el registro.
+        if self.instance.pk:
+            noticia = self.instance.noticia
+            self.initial.setdefault('noticia_url', noticia.url)
+            self.initial.setdefault('noticia_titulo', noticia.titulo)
+            self.initial.setdefault('noticia_fuente', noticia.fuente_id)
+            self.initial.setdefault('noticia_fecha_publicacion', noticia.fecha_publicacion)
+            ubicacion = self.instance.ubicacion
+            if ubicacion:
+                self.initial.setdefault('lugar_nombre', ubicacion.nombre_lugar)
+                self.initial.setdefault('lugar_zona', ubicacion.zona)
+                self.initial.setdefault('lugar_latitud', ubicacion.latitud)
+                self.initial.setdefault('lugar_longitud', ubicacion.longitud)
+                self.initial.setdefault('lugar_precision', ubicacion.precision)
+
+    def clean(self):
+        cleaned = super().clean()
+
+        # Título y medio solo son obligatorios si la noticia todavía no existe.
+        url = cleaned.get('noticia_url')
+        if url and not Noticia.objects.filter(url=url).exists():
+            if not cleaned.get('noticia_titulo'):
+                self.add_error('noticia_titulo', 'Obligatorio si la noticia todavía no está cargada.')
+            if not cleaned.get('noticia_fuente'):
+                self.add_error('noticia_fuente', 'Obligatorio si la noticia todavía no está cargada.')
+
+        # La ubicación es opcional, pero si se carga algo tiene que quedar completa.
+        lat, lon = cleaned.get('lugar_latitud'), cleaned.get('lugar_longitud')
+        if any([cleaned.get('lugar_nombre'), cleaned.get('lugar_zona'), lat is not None, lon is not None]):
+            if not cleaned.get('lugar_nombre') and 'lugar_nombre' not in self.errors:
+                self.add_error('lugar_nombre', 'Indicá el lugar.')
+            if lat is None and 'lugar_latitud' not in self.errors:
+                self.add_error('lugar_latitud', 'Indicá la latitud.')
+            if lon is None and 'lugar_longitud' not in self.errors:
+                self.add_error('lugar_longitud', 'Indicá la longitud.')
+        return cleaned
+
+    def resolver_noticia(self):
+        """
+        Devuelve la Noticia del avistamiento (la URL es única):
+        - URL nueva: crea la noticia (origen MANUAL).
+        - URL de la noticia actual del registro: se corrigen sus datos.
+        - URL de otra noticia ya cargada: se reutiliza sin modificarla.
+        """
+        cd = self.cleaned_data
+        existente = Noticia.objects.filter(url=cd['noticia_url']).first()
+
+        if existente is None:
+            return Noticia.objects.create(
+                fuente=cd['noticia_fuente'],
+                url=cd['noticia_url'],
+                titulo=_limpiar_espacios(cd['noticia_titulo']),
+                fecha_publicacion=cd.get('noticia_fecha_publicacion'),
+                origen=Noticia.Origen.MANUAL,
+                estado_procesamiento=Noticia.EstadoProcesamiento.PROCESADA,
+            )
+
+        if self.instance.noticia_id == existente.pk:
+            if cd.get('noticia_titulo'):
+                existente.titulo = _limpiar_espacios(cd['noticia_titulo'])
+            if cd.get('noticia_fuente'):
+                existente.fuente = cd['noticia_fuente']
+            existente.fecha_publicacion = cd.get('noticia_fecha_publicacion')
+            existente.save()
+        return existente
+
+    def resolver_ubicacion(self):
+        """Devuelve la Ubicacion (reutiliza una idéntica si existe) o None si no se cargó."""
+        cd = self.cleaned_data
+        # clean() garantiza que o está todo vacío o todo completo.
+        if not cd.get('lugar_nombre'):
+            return None
+        datos = {
+            'nombre_lugar': _limpiar_espacios(cd['lugar_nombre']),
+            'zona': _limpiar_espacios(cd.get('lugar_zona')),
+            'latitud': cd['lugar_latitud'],
+            'longitud': cd['lugar_longitud'],
+            'precision': cd.get('lugar_precision') or Ubicacion.Precision.APROXIMADA,
+        }
+        return Ubicacion.objects.filter(**datos).first() or Ubicacion.objects.create(**datos)
 
 
 class AvistamientoFiltroForm(forms.Form):
@@ -148,25 +295,3 @@ class AvistamientoFiltroForm(forms.Form):
         if desde and hasta and desde > hasta:
             self.add_error('hasta', 'La fecha "hasta" no puede ser anterior a "desde".')
         return cleaned
-
-
-class ImagenForm(forms.ModelForm):
-    class Meta:
-        model = Imagen
-        fields = ['archivo', 'descripcion']
-        widgets = {
-            'archivo': forms.ClearableFileInput(
-                attrs={'accept': 'image/jpeg,image/png,image/webp'}
-            ),
-        }
-
-
-ImagenFormSet = inlineformset_factory(
-    Registro,
-    Imagen,
-    form=ImagenForm,
-    extra=3,            # slots vacíos para subir fotos nuevas
-    max_num=10,         # tope por avistamiento
-    validate_max=True,
-    can_delete=True,    # checkbox "Eliminar" en cada foto existente
-)

@@ -33,6 +33,9 @@
           <a href="{% url 'especies:lista' %}"{% if request.resolver_match.namespace == 'especies' %} aria-current="page"{% endif %}>Especies</a>
           <a href="{% url 'avistamientos:lista' %}"{% if request.resolver_match.namespace == 'avistamientos' %} aria-current="page"{% endif %}>Avistamientos</a>
         {% endif %}
+                  {% if user.es_administrador %}
+            <a href="{% url 'registro_admin' %}"{% if request.resolver_match.url_name == 'registro_admin' %} aria-current="page"{% endif %}>  administradores</a>
+          {% endif %}
       </nav>
 
       <div class="user-box">

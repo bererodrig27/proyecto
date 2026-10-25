@@ -14,8 +14,8 @@ Devolvé un JSON con una clave "avistamientos" que contenga una lista. Cada elem
 - nombre_cientifico (null si no lo sabés con certeza)
 - lugar_texto (tal como aparece en la nota; el lugar más específico posible)
 - fecha_avistamiento (YYYY-MM-DD o null si no se menciona)
-- cita (frase textual de la nota que lo respalda, máx. 25 palabras)
-- confianza (0 a 1)
+- tipo_registro (uno de: {tipos})
+- cita (frase copiada exactamente de la nota que lo respalda, máx. 25 palabras)
 
 Reglas:
 - Si la nota no describe ningún avistamiento, devolvé una lista vacía.
@@ -24,6 +24,7 @@ Reglas:
 - Fechas relativas ("ayer", "el sábado") resolvelas con la fecha de publicación; si no podés con certeza, null.
 - Ignorá animales domésticos y menciones generales (por ejemplo "el yaguareté está en peligro de extinción") que no sean un encuentro o registro concreto.
 - Un elemento por especie y lugar; no repitas.
+- La cita debe ser una copia literal del texto, sin parafrasear ni corregir.
 
 Título: {titulo}
 Fecha de publicación: {fecha_pub}
@@ -61,7 +62,7 @@ def extraer_avistamientos(titulo: str, fecha_pub: str, texto: str):
     None permite reintentar la nota en otra corrida."""
     prompt = PROMPT.format(
         titulo=titulo, fecha_pub=fecha_pub or "desconocida",
-        texto=texto[: config.MAX_CHARS_TEXTO],
+        texto=texto[: config.MAX_CHARS_TEXTO], tipos=", ".join(config.TIPOS_REGISTRO),
     )
     for intento in range(1, config.GEMINI_REINTENTOS + 1):
         try:
@@ -77,4 +78,4 @@ def extraer_avistamientos(titulo: str, fecha_pub: str, texto: str):
         except Exception as e:  # cuota, red, etc.
             print(f"  [IA] error (intento {intento}): {e}")
         time.sleep(5 * 2 ** (intento - 1))
-    return None
+    return None

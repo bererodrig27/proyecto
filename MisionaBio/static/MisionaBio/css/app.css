@@ -285,6 +285,8 @@ a:hover { color: var(--canopy); }
 .field input[type="number"],
 .field input[type="date"],
 .field input[type="email"],
+.field input[type="password"],   /* nuevo */
+.field input[type="url"],        /* nuevo */
 .field select,
 .field textarea {
   width: 100%;
@@ -647,4 +649,68 @@ form.form-actions { margin-top: 1.2rem; }
   .image-gallery {
     grid-template-columns: 1fr;
   }
+}
+/* ---------- Alta de administradores ---------- */
+
+.admin-signup {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  max-width: 58rem;
+}
+
+.admin-signup__form h1 { font-size: 1.9rem; margin-bottom: 0.4rem; }
+.admin-signup__form .lead { color: var(--ink-soft); margin: 0 0 1.8rem; max-width: 34rem; }
+
+.admin-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem 1.2rem;
+}
+.admin-fields .field--username,
+.admin-fields .field--email,
+.admin-fields .pw-rules,
+.admin-fields .check { grid-column: 1 / -1; }
+
+.pw-rules ul { margin: 0; padding-left: 1.1rem; }
+.pw-rules li { margin-bottom: 0.15rem; }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  width: fit-content;
+}
+.check input { accent-color: var(--forest-mid); }
+
+/* Panel lateral con los permisos del rol */
+.admin-signup__aside {
+  background: var(--forest-deep);
+  color: var(--parchment);
+  border-radius: 10px;
+  padding: 1.8rem;
+}
+.admin-signup__aside h2 { font-size: 1.25rem; color: var(--parchment); margin-bottom: 1.1rem; }
+
+.perm-list { list-style: none; margin: 0 0 1.3rem; padding: 0; }
+.perm-list li {
+  padding: 0.85rem 0;
+  border-top: 1px solid rgba(244, 239, 227, 0.16);
+  font-size: 0.92rem;
+  color: #B9C7BA;
+}
+.perm-list li:last-child { border-bottom: 1px solid rgba(244, 239, 227, 0.16); }
+.perm-list strong { display: block; color: var(--gold); font-weight: 600; margin-bottom: 0.15rem; }
+
+.admin-signup__note { margin: 0; font-size: 0.85rem; color: #B9C7BA; }
+
+@media (max-width: 860px) {
+  .admin-signup { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .admin-fields { grid-template-columns: 1fr; }
 }

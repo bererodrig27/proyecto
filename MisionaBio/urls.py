@@ -26,6 +26,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('login/', auth_views.LoginView.as_view(template_name='MisionaBio/login.html', redirect_authenticated_user=True), name='login'),
     path('registro/', views.registro, name='registro'),
+    path('gestion/nuevo-admin/', views.registro_admin, name='registro_admin'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
 

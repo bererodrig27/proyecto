@@ -1,15 +1,13 @@
-import os
-import uuid
 from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
-from django.db import models
-from django.db.models.signals import post_delete
-from django.dispatch import receiver
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models, transaction
 from django.utils import timezone
+from django.contrib.auth.models import AbstractUser, UserManager  # sumá UserManager al import existente
+
 
 
 # =============================================================================
@@ -41,8 +39,17 @@ class Rol(models.Model):
     def visitante(cls):
         return cls.objects.get(nombre=cls.VISITANTE)
 
+class UsuarioManager(UserManager):
+    """Al crear un superusuario por consola, le asigna el rol Administrador."""
+
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields['rol'] = Rol.objects.get_or_create(nombre=Rol.ADMINISTRADOR)[0]
+        return super().create_superuser(username, email, password, **extra_fields)
+
 
 class Usuario(AbstractUser):
+    # AbstractUser ya aporta: nombre (first_name/last_name), contraseña (hash),
+    # activo (is_active). Se mantiene la tabla "rol" como FK (id_rol).
     email = models.EmailField(unique=True, blank=False)
     rol = models.ForeignKey(
         Rol,
@@ -50,7 +57,9 @@ class Usuario(AbstractUser):
         db_column='id_rol',
         related_name='usuarios',
     )
-    fecha_alta = models.DateField(auto_now_add=True)
+    fecha_alta = models.DateTimeField(auto_now_add=True)
+
+    objects = UsuarioManager()
 
     class Meta:
         db_table = 'usuario'
@@ -63,7 +72,7 @@ class Usuario(AbstractUser):
 
 
 # =============================================================================
-# Utilidades de normalización (RF02: evitar duplicados e inconsistencias)
+# Utilidades de normalización (evitar duplicados e inconsistencias)
 # =============================================================================
 
 def _limpiar_espacios(valor):
@@ -86,33 +95,15 @@ def normalizar_nombre_cientifico(valor):
 
 
 # =============================================================================
-# Fuente
+# Fuente (medio de comunicación o portal desde el que se hace scraping)
 # =============================================================================
 
 class Fuente(models.Model):
-    # Tabla "fuente": id_fuente, nombre, tipo, url, confiabilidad
-    # Procedencia de cada registro (RF11): GBIF, iNaturalist, carga manual, etc.
-
-    class Tipo(models.TextChoices):
-        API = 'API', 'API'
-        SCRAPING = 'SCRAPING', 'Scraping'
-        MANUAL = 'MANUAL', 'Carga manual'
-
-    class Confiabilidad(models.TextChoices):
-        ALTA = 'ALTA', 'Alta'
-        MEDIA = 'MEDIA', 'Media'
-        BAJA = 'BAJA', 'Baja'
-
+    # Tabla "fuente": id_fuente, nombre, url_base, activa
     id_fuente = models.AutoField(primary_key=True)
-    nombre = models.CharField('nombre', max_length=100, unique=True)
-    tipo = models.CharField('tipo', max_length=50, choices=Tipo.choices, default=Tipo.API)
-    url = models.URLField('URL', max_length=255, blank=True)
-    confiabilidad = models.CharField(
-        'confiabilidad',
-        max_length=50,
-        choices=Confiabilidad.choices,
-        default=Confiabilidad.MEDIA,
-    )
+    nombre = models.CharField('nombre', max_length=150, unique=True, help_text='Medio o portal.')
+    url_base = models.URLField('URL base', max_length=255, blank=True)
+    activa = models.BooleanField('activa', default=True)
 
     class Meta:
         db_table = 'fuente'
@@ -125,12 +116,82 @@ class Fuente(models.Model):
 
 
 # =============================================================================
+# Noticia (nota periodística de la que sale uno o más avistamientos)
+# =============================================================================
+
+class Noticia(models.Model):
+    # Tabla "noticia": id_noticia, id_fuente, url (UK), titulo, fecha_publicacion,
+    #                  fecha_scraping, extracto, origen, estado_procesamiento
+    #
+    # La URL única evita procesar dos veces la misma nota. Solo se guarda un
+    # extracto del texto, nunca la nota completa.
+
+    class Origen(models.TextChoices):
+        SCRAPING = 'SCRAPING', 'Scraping'
+        MANUAL = 'MANUAL', 'Carga manual'
+
+    class EstadoProcesamiento(models.TextChoices):
+        PENDIENTE = 'PENDIENTE', 'Pendiente'
+        PROCESADA = 'PROCESADA', 'Procesada'
+        DESCARTADA = 'DESCARTADA', 'Descartada'
+        ERROR = 'ERROR', 'Error'
+
+    id_noticia = models.AutoField(primary_key=True)
+    fuente = models.ForeignKey(
+        Fuente,
+        on_delete=models.PROTECT,
+        db_column='id_fuente',
+        related_name='noticias',
+        verbose_name='fuente',
+    )
+    url = models.URLField('URL', max_length=500, unique=True)
+    titulo = models.CharField('título', max_length=300)
+    fecha_publicacion = models.DateField('fecha de publicación', null=True, blank=True)
+    fecha_scraping = models.DateTimeField('fecha de scraping / carga', auto_now_add=True)
+    extracto = models.TextField('extracto', blank=True)
+    origen = models.CharField('origen', max_length=20, choices=Origen.choices, default=Origen.SCRAPING)
+    estado_procesamiento = models.CharField(
+        'estado de procesamiento',
+        max_length=20,
+        choices=EstadoProcesamiento.choices,
+        default=EstadoProcesamiento.PENDIENTE,
+    )
+
+    class Meta:
+        db_table = 'noticia'
+        verbose_name = 'noticia'
+        verbose_name_plural = 'noticias'
+        ordering = [models.F('fecha_publicacion').desc(nulls_last=True), '-id_noticia']
+        indexes = [
+            models.Index(fields=['estado_procesamiento'], name='ix_noticia_estado'),
+            models.Index(fields=['fecha_publicacion'], name='ix_noticia_fecha'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(origen__in=['SCRAPING', 'MANUAL']),
+                name='ck_noticia_origen',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(estado_procesamiento__in=['PENDIENTE', 'PROCESADA', 'DESCARTADA', 'ERROR']),
+                name='ck_noticia_estado',
+            ),
+        ]
+
+    def __str__(self):
+        return self.titulo
+
+    def clean(self):
+        super().clean()
+        self.titulo = _limpiar_espacios(self.titulo)
+
+
+# =============================================================================
 # Especie
 # =============================================================================
 
 class Especie(models.Model):
-    # Tabla "especie": id_especie, nombre_cientifico, nombre_comun,
-    #                  clase_taxonomica, taxonomia, estado_conservacion
+    # Tabla "especie": id_especie, nombre_cientifico (UK), nombre_comun,
+    #                  clase_taxonomica, estado_conservacion, descripcion
     #
     # Nota Oracle: Oracle trata el texto vacío ('') como NULL. Por eso los
     # CharField con blank=True quedan nullable en la base y Django lo maneja solo.
@@ -157,10 +218,12 @@ class Especie(models.Model):
     nombre_comun = models.CharField('nombre común', max_length=150, blank=True)
     clase_taxonomica = models.CharField(
         'clase taxonómica',
-        max_length=50,
+        max_length=100,
         blank=True,
         help_text='Por ejemplo: Aves, Mammalia, Reptilia, Amphibia.',
     )
+    # Campo del proyecto original que NO figura en el MR del documento. Se conserva
+    # para no perder datos ni romper formularios; se puede quitar si no se usa.
     taxonomia = models.CharField(
         'taxonomía',
         max_length=255,
@@ -173,10 +236,7 @@ class Especie(models.Model):
         choices=EstadoConservacion.choices,
         default=EstadoConservacion.NO_EVALUADA,
     )
-
-    # --- Campo sugerido (NO está en el MR actual). Ver notas: RF06 pide una
-    # --- descripción en la ficha de la especie. Si lo agregan al MR, descomentar.
-    # descripcion = models.TextField('descripción', blank=True)
+    descripcion = models.TextField('descripción', blank=True)
 
     class Meta:
         db_table = 'especie'
@@ -212,13 +272,73 @@ class Especie(models.Model):
 
 
 # =============================================================================
-# Registro (avistamiento)
+# Ubicación (lugar del avistamiento)
+# =============================================================================
+
+class Ubicacion(models.Model):
+    # Tabla "ubicacion": id_ubicacion, nombre_lugar, zona, latitud, longitud, precision
+    #
+    # Las coordenadas son aproximadas: salen de geocodificar el lugar que
+    # menciona la noticia. "precision" indica qué tan confiable es el punto.
+
+    class Precision(models.TextChoices):
+        EXACTA = 'EXACTA', 'Exacta'
+        APROXIMADA = 'APROXIMADA', 'Aproximada'
+        OFUSCADA = 'OFUSCADA', 'Ofuscada'
+
+    id_ubicacion = models.AutoField(primary_key=True)
+    nombre_lugar = models.CharField('lugar', max_length=200)
+    zona = models.CharField('zona', max_length=100, blank=True)
+    latitud = models.FloatField('latitud', validators=[MinValueValidator(-90), MaxValueValidator(90)])
+    longitud = models.FloatField('longitud', validators=[MinValueValidator(-180), MaxValueValidator(180)])
+    precision = models.CharField(
+        'precisión',
+        max_length=20,
+        choices=Precision.choices,
+        default=Precision.APROXIMADA,
+    )
+
+    class Meta:
+        db_table = 'ubicacion'
+        verbose_name = 'ubicación'
+        verbose_name_plural = 'ubicaciones'
+        ordering = ['nombre_lugar', 'id_ubicacion']
+        indexes = [
+            models.Index(fields=['zona'], name='ix_ubicacion_zona'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(latitud__gte=-90, latitud__lte=90),
+                name='ck_ubicacion_latitud',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(longitud__gte=-180, longitud__lte=180),
+                name='ck_ubicacion_longitud',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(precision__in=['EXACTA', 'APROXIMADA', 'OFUSCADA']),
+                name='ck_ubicacion_precision',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre_lugar
+
+    def clean(self):
+        super().clean()
+        self.nombre_lugar = _limpiar_espacios(self.nombre_lugar)
+        self.zona = _limpiar_espacios(self.zona)
+
+
+# =============================================================================
+# Registro (avistamiento respaldado por una noticia)
 # =============================================================================
 
 class Registro(models.Model):
-    # Tabla "registro": id_registro, id_especie, id_fuente, id_usuario_curador,
-    #                   fecha_avistamiento, latitud, longitud, zona,
-    #                   estado_calidad, fecha_carga
+    # Tabla "registro": id_registro, id_noticia, id_especie, id_ubicacion,
+    #                   fecha_avistamiento, tipo_registro, estado_calidad,
+    #                   fragmento_origen, id_usuario_carga, id_usuario_validador,
+    #                   fecha_validacion
     #
     # En la interfaz se muestra como "Avistamiento" (verbose_name).
 
@@ -226,11 +346,20 @@ class Registro(models.Model):
         PENDIENTE = 'PENDIENTE', 'Pendiente'
         VALIDADO = 'VALIDADO', 'Validado'
         CORREGIDO = 'CORREGIDO', 'Corregido'
+        DESCARTADO = 'DESCARTADO', 'Descartado'
 
     id_registro = models.AutoField(primary_key=True)
 
-    # Nullable a propósito: un registro puede llegar con la especie incierta o
-    # faltante y esperar la sugerencia de la IA (RF09).
+    # Obligatoria: todo registro (también los cargados a mano) apunta a una noticia.
+    noticia = models.ForeignKey(
+        Noticia,
+        on_delete=models.PROTECT,
+        db_column='id_noticia',
+        related_name='registros',
+        verbose_name='noticia',
+    )
+    # Nulo hasta que se resuelva la especie (la noticia puede mencionar una que no
+    # está en el catálogo).
     especie = models.ForeignKey(
         Especie,
         on_delete=models.PROTECT,
@@ -240,84 +369,104 @@ class Registro(models.Model):
         blank=True,
         verbose_name='especie',
     )
-    fuente = models.ForeignKey(
-        Fuente,
+    # Nulo si no se pudo ubicar el lugar.
+    ubicacion = models.ForeignKey(
+        Ubicacion,
         on_delete=models.PROTECT,
-        db_column='id_fuente',
+        db_column='id_ubicacion',
         related_name='registros',
-        verbose_name='fuente',
-    )
-    # Nullable: los registros que vienen del scraping todavía no tienen curador.
-    usuario_curador = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        db_column='id_usuario_curador',
-        related_name='registros_curados',
         null=True,
         blank=True,
-        verbose_name='curador',
+        verbose_name='ubicación',
     )
 
-    fecha_avistamiento = models.DateField('fecha de avistamiento')
-    latitud = models.DecimalField(
-        'latitud',
-        max_digits=9,
-        decimal_places=6,
-        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+    # Nula si la noticia no precisa la fecha.
+    fecha_avistamiento = models.DateField('fecha de avistamiento', null=True, blank=True)
+    tipo_registro = models.CharField(
+        'tipo de registro',
+        max_length=50,
+        blank=True,
+        help_text='Por ejemplo: avistamiento directo, rastro, hallazgo, cámara trampa.',
     )
-    longitud = models.DecimalField(
-        'longitud',
-        max_digits=9,
-        decimal_places=6,
-        validators=[MinValueValidator(-180), MaxValueValidator(180)],
-    )
-    zona = models.CharField('zona', max_length=100, blank=True)
     estado_calidad = models.CharField(
         'estado de calidad',
-        max_length=50,
+        max_length=20,
         choices=EstadoCalidad.choices,
         default=EstadoCalidad.PENDIENTE,
     )
-    fecha_carga = models.DateTimeField('fecha de carga', auto_now_add=True)
+    # Fragmento de la noticia que respalda el registro (procedencia verificable).
+    fragmento_origen = models.TextField('fragmento de origen', blank=True)
 
-    # --- Campos sugeridos (NO están en el MR actual). Ver notas. ---
-    # RF03: especies sensibles con ubicación ofuscada o aproximada.
-    # ubicacion_ofuscada = models.BooleanField('ubicación ofuscada', default=False)
-    # RF01/RNF04: id del registro en la fuente (ej. GBIF key) para que reejecutar
-    # la ingesta no duplique registros.
-    # codigo_externo = models.CharField('código en la fuente', max_length=100, blank=True)
+    # Nulo si el registro viene del scraping.
+    usuario_carga = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='id_usuario_carga',
+        related_name='registros_cargados',
+        null=True,
+        blank=True,
+        verbose_name='cargado por',
+    )
+    # Nulo hasta la revisión.
+    usuario_validador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='id_usuario_validador',
+        related_name='registros_validados',
+        null=True,
+        blank=True,
+        verbose_name='validado por',
+    )
+    fecha_validacion = models.DateTimeField('fecha de validación', null=True, blank=True)
 
     class Meta:
         db_table = 'registro'
         verbose_name = 'avistamiento'
         verbose_name_plural = 'avistamientos'
-        # Orden determinista (el id desempata): necesario para paginar bien en Oracle.
-        ordering = ['-fecha_avistamiento', '-id_registro']
+        # Orden determinista (el id desempata) y con fechas nulas al final:
+        # necesario para paginar bien en Oracle.
+        ordering = [models.F('fecha_avistamiento').desc(nulls_last=True), '-id_registro']
         indexes = [
             models.Index(fields=['fecha_avistamiento'], name='ix_registro_fecha'),
-            models.Index(fields=['zona'], name='ix_registro_zona'),
             models.Index(fields=['estado_calidad'], name='ix_registro_calidad'),
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(latitud__gte=-90, latitud__lte=90),
-                name='ck_registro_latitud',
-            ),
-            models.CheckConstraint(
-                condition=models.Q(longitud__gte=-180, longitud__lte=180),
-                name='ck_registro_longitud',
-            ),
-            models.CheckConstraint(
-                condition=models.Q(estado_calidad__in=['PENDIENTE', 'VALIDADO', 'CORREGIDO']),
+                condition=models.Q(estado_calidad__in=['PENDIENTE', 'VALIDADO', 'CORREGIDO', 'DESCARTADO']),
                 name='ck_registro_estado',
             ),
         ]
-        # Para sumar cuando exista codigo_externo:
-        # models.UniqueConstraint(fields=['fuente', 'codigo_externo'], name='uq_registro_fuente_codigo')
 
     def __str__(self):
         especie = self.especie.nombre_cientifico if self.especie_id else 'Especie sin identificar'
-        return f'{especie} · {self.fecha_avistamiento:%d/%m/%Y}'
+        if self.fecha_avistamiento:
+            return f'{especie} · {self.fecha_avistamiento:%d/%m/%Y}'
+        return f'{especie} · sin fecha'
+
+    # --- Accesos de solo lectura para que las plantillas sigan funcionando ---
+    # (r.zona, r.latitud, r.longitud, r.fuente y el link a la noticia).
+    # Para filtrar/ordenar en consultas hay que usar la ruta real:
+    # ubicacion__zona, noticia__fuente, etc.
+
+    @property
+    def url_noticia(self):
+        return self.noticia.url
+
+    @property
+    def fuente(self):
+        return self.noticia.fuente
+
+    @property
+    def zona(self):
+        return self.ubicacion.zona if self.ubicacion_id else ''
+
+    @property
+    def latitud(self):
+        return self.ubicacion.latitud if self.ubicacion_id else None
+
+    @property
+    def longitud(self):
+        return self.ubicacion.longitud if self.ubicacion_id else None
 
     def clean(self):
         super().clean()
@@ -333,195 +482,105 @@ class Registro(models.Model):
         ):
             errores['especie'] = 'Un registro validado o corregido debe tener una especie asignada.'
 
-        self.zona = _limpiar_espacios(self.zona)
+        self.tipo_registro = _limpiar_espacios(self.tipo_registro)
 
         if errores:
             raise ValidationError(errores)
 
+
 # =============================================================================
-# Imagen (fotos de un avistamiento)
+# Extracción de IA (resultado del modelo de lenguaje y su revisión)
 # =============================================================================
 
-TAMANO_MAX_IMAGEN_MB = 8
-
-
-def ruta_imagen(instance, filename):
-    """
-    Ruta donde se guarda la foto: avistamientos/AAAA/MM/<uuid>.<ext>
-    Nunca se conserva el nombre original (puede traer datos personales o caracteres raros).
-    """
-    extension = os.path.splitext(filename)[1].lower()
-    return f'avistamientos/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{extension}'
-
-
-def validar_tamano_imagen(archivo):
-    if archivo.size > TAMANO_MAX_IMAGEN_MB * 1024 * 1024:
-        raise ValidationError(f'La imagen no puede superar los {TAMANO_MAX_IMAGEN_MB} MB.')
-
-
-class Imagen(models.Model):
-    # Tabla "imagen": id_imagen, id_registro, url, descripcion
+class ExtraccionIA(models.Model):
+    # Tabla "extraccion_ia": id_extraccion, id_registro (FK, UK), modelo,
+    #                        version_prompt, json_extraido, confianza,
+    #                        estado_revision, json_corregido, id_usuario_revisor,
+    #                        fecha_extraccion, fecha_revision
     #
-    # En la base se guarda la RUTA del archivo (columna "url", VARCHAR(255)); el archivo
-    # en sí vive en MEDIA_ROOT. Se llama "archivo" en Python para no confundirlo con
-    # imagen.archivo.url (la dirección web que arma Django).
+    # Relación 1 a 1 con el registro: una noticia puede generar varios avistamientos,
+    # pero cada uno tiene su propia extracción. Los registros cargados a mano por un
+    # Administrador no tienen extracción.
 
-    id_imagen = models.AutoField(primary_key=True)
+    class EstadoRevision(models.TextChoices):
+        PENDIENTE = 'PENDIENTE', 'Pendiente'
+        ACEPTADA = 'ACEPTADA', 'Aceptada'
+        CORREGIDA = 'CORREGIDA', 'Corregida'
+        RECHAZADA = 'RECHAZADA', 'Rechazada'
 
-    # CASCADE a propósito: una foto no tiene sentido sin su avistamiento. Si se elimina el
-    # registro, se eliminan sus fotos (y el archivo, ver señal más abajo).
-    registro = models.ForeignKey(
+    # Cómo se traduce la revisión al estado del registro.
+    ESTADO_REGISTRO = {
+        EstadoRevision.ACEPTADA: Registro.EstadoCalidad.VALIDADO,
+        EstadoRevision.CORREGIDA: Registro.EstadoCalidad.CORREGIDO,
+        EstadoRevision.RECHAZADA: Registro.EstadoCalidad.DESCARTADO,
+    }
+
+    id_extraccion = models.AutoField(primary_key=True)
+    registro = models.OneToOneField(
         Registro,
         on_delete=models.CASCADE,
         db_column='id_registro',
-        related_name='imagenes',
+        related_name='extraccion',
         verbose_name='avistamiento',
     )
-    archivo = models.ImageField(
-        'imagen',
-        upload_to=ruta_imagen,
-        max_length=255,
-        db_column='url',
-        validators=[
-            FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']),
-            validar_tamano_imagen,
-        ],
-    )
-    descripcion = models.CharField('descripción', max_length=255, blank=True)
-
-    # --- Campo sugerido (NO está en el MR actual): permite saber cuándo se subió cada foto.
-    fecha_subida = models.DateTimeField('fecha de subida', auto_now_add=True)
-
-    class Meta:
-        db_table = 'imagen'
-        verbose_name = 'imagen'
-        verbose_name_plural = 'imágenes'
-        ordering = ['id_imagen']
-
-    def __str__(self):
-        return f'Imagen {self.pk} · avistamiento {self.registro_id}'
-
-    def clean(self):
-        super().clean()
-        self.descripcion = _limpiar_espacios(self.descripcion)
-
-
-@receiver(post_delete, sender=Imagen)
-def borrar_archivo_de_imagen(sender, instance, **kwargs):
-    """Django no borra el archivo al borrar la fila: se hace acá para no dejar fotos huérfanas."""
-    if instance.archivo:
-        instance.archivo.delete(save=False)
-
-
-# =============================================================================
-# Predicción de IA (reconocimiento de especie por imagen)
-# =============================================================================
-
-class PrediccionIA(models.Model):
-    # Tabla "prediccion_ia": id_prediccion, id_registro, id_especie_sugerida,
-    #                        id_usuario_revisor, confianza, aceptada, fecha
-    #
-    # Cada fila es UNA especie candidata propuesta por el modelo para un avistamiento
-    # (el modelo devuelve varias, ordenadas por confianza). El administrador revisa las
-    # candidatas y elige: la decisión final queda en Registro.especie (RF09, RF10).
-    #
-    # Qué significa "aceptada":
-    #   None  -> sin revisar todavía
-    #   True  -> el administrador eligió esta candidata
-    #   False -> el administrador revisó y eligió otra especie, o descartó todas
-    # Regla de aplicación (no se puede forzar en Oracle con un índice parcial): por cada
-    # avistamiento hay como máximo UNA candidata aceptada. La garantiza la vista/servicio.
-
-    id_prediccion = models.AutoField(primary_key=True)
-
-    registro = models.ForeignKey(
-        Registro,
-        on_delete=models.CASCADE,
-        db_column='id_registro',
-        related_name='predicciones',
-        verbose_name='avistamiento',
-    )
-    # --- Campo sugerido (NO está en el MR actual): qué foto originó la sugerencia.
-    # SET_NULL para conservar la estadística de aciertos aunque la foto se elimine.
-    imagen = models.ForeignKey(
-        Imagen,
-        on_delete=models.SET_NULL,
-        db_column='id_imagen',
-        related_name='predicciones',
-        null=True,
-        blank=True,
-        verbose_name='imagen analizada',
-    )
-    # PROTECT: no se puede borrar una especie que el modelo sugirió (historial de entrenamiento).
-    especie_sugerida = models.ForeignKey(
-        Especie,
-        on_delete=models.PROTECT,
-        db_column='id_especie_sugerida',
-        related_name='predicciones',
-        verbose_name='especie sugerida',
-    )
-    # Nullable: mientras nadie revisó, no hay revisor.
-    usuario_revisor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        db_column='id_usuario_revisor',
-        related_name='predicciones_revisadas',
-        null=True,
-        blank=True,
-        verbose_name='revisor',
-    )
-
-    # Probabilidad entre 0 y 1 (0.7850 = 78,5 %). Se muestra siempre junto a la sugerencia (RNF06).
+    modelo = models.CharField('modelo', max_length=100)
+    version_prompt = models.CharField('versión del prompt', max_length=20, blank=True)
+    json_extraido = models.JSONField('JSON extraído')
+    # Calculada por el sistema a partir de controles de calidad, NO autodeclarada
+    # por el modelo de lenguaje. Valor entre 0 y 1 (0.7850 = 78,5 %).
     confianza = models.DecimalField(
         'confianza',
         max_digits=5,
         decimal_places=4,
         validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('1'))],
     )
-    aceptada = models.BooleanField('aceptada', null=True, blank=True)
-    fecha = models.DateTimeField('fecha de la sugerencia', auto_now_add=True)
-
-    # --- Campos sugeridos (NO están en el MR actual) ---
-    # Posición en el ranking del modelo para ese avistamiento (1 = la más probable).
-    posicion = models.PositiveSmallIntegerField('posición en el ranking', default=1)
-    # Versión del modelo que generó la sugerencia, para comparar versiones más adelante.
-    modelo_version = models.CharField('versión del modelo', max_length=50, blank=True)
-    # RNF10: la corrección debe quedar con fecha y usuario responsable.
+    estado_revision = models.CharField(
+        'estado de revisión',
+        max_length=20,
+        choices=EstadoRevision.choices,
+        default=EstadoRevision.PENDIENTE,
+    )
+    # Nulo si no se corrigió.
+    json_corregido = models.JSONField('JSON corregido', null=True, blank=True)
+    # Nulo hasta la revisión.
+    usuario_revisor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='id_usuario_revisor',
+        related_name='extracciones_revisadas',
+        null=True,
+        blank=True,
+        verbose_name='revisor',
+    )
+    fecha_extraccion = models.DateTimeField('fecha de extracción', auto_now_add=True)
     fecha_revision = models.DateTimeField('fecha de revisión', null=True, blank=True)
 
     class Meta:
-        db_table = 'prediccion_ia'
-        verbose_name = 'predicción de IA'
-        verbose_name_plural = 'predicciones de IA'
-        # Orden determinista: las candidatas de cada avistamiento salen de mejor a peor.
-        ordering = ['registro_id', 'posicion', 'id_prediccion']
+        db_table = 'extraccion_ia'
+        verbose_name = 'extracción de IA'
+        verbose_name_plural = 'extracciones de IA'
+        ordering = ['-fecha_extraccion', '-id_extraccion']
         indexes = [
-            models.Index(fields=['aceptada'], name='ix_prediccion_aceptada'),
+            models.Index(fields=['estado_revision'], name='ix_extraccion_estado'),
         ]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(confianza__gte=0, confianza__lte=1),
-                name='ck_prediccion_confianza',
+                name='ck_extraccion_confianza',
             ),
             models.CheckConstraint(
-                condition=models.Q(posicion__gte=1),
-                name='ck_prediccion_posicion',
+                condition=models.Q(estado_revision__in=['PENDIENTE', 'ACEPTADA', 'CORREGIDA', 'RECHAZADA']),
+                name='ck_extraccion_estado',
             ),
-            # No puede haber revisor sin decisión (aceptada tiene que ser True o False).
+            # No puede haber una revisión resuelta sin revisor.
             models.CheckConstraint(
-                condition=models.Q(aceptada__isnull=False) | models.Q(usuario_revisor__isnull=True),
-                name='ck_prediccion_revisor',
+                condition=models.Q(estado_revision='PENDIENTE') | models.Q(usuario_revisor__isnull=False),
+                name='ck_extraccion_revisor',
             ),
         ]
 
     def __str__(self):
-        return f'{self.especie_sugerida.nombre_cientifico} ({self.confianza:.0%}) · avistamiento {self.registro_id}'
-
-    @property
-    def estado(self):
-        if self.aceptada is None:
-            return 'pendiente'
-        return 'aceptada' if self.aceptada else 'rechazada'
+        return f'Extracción {self.pk} · avistamiento {self.registro_id} ({self.get_estado_revision_display()})'
 
     @property
     def confianza_porcentaje(self):
@@ -532,12 +591,79 @@ class PrediccionIA(models.Model):
         super().clean()
         errores = {}
 
-        # La imagen analizada tiene que ser del mismo avistamiento.
-        if self.imagen_id and self.registro_id and self.imagen.registro_id != self.registro_id:
-            errores['imagen'] = 'La imagen no pertenece a este avistamiento.'
-
-        if self.aceptada is None and self.usuario_revisor_id:
-            errores['aceptada'] = 'Una predicción con revisor debe estar aceptada o rechazada.'
+        if self.estado_revision == self.EstadoRevision.CORREGIDA and not self.json_corregido:
+            errores['json_corregido'] = 'Una extracción corregida debe incluir el JSON corregido.'
+        if self.estado_revision == self.EstadoRevision.PENDIENTE and self.usuario_revisor_id:
+            errores['estado_revision'] = 'Una extracción con revisor no puede estar pendiente.'
 
         if errores:
             raise ValidationError(errores)
+
+    @transaction.atomic
+    def revisar(self, usuario, estado, json_corregido=None):
+        """
+        Registra la revisión del Administrador y traslada el resultado al registro:
+        ACEPTADA -> VALIDADO, CORREGIDA -> CORREGIDO, RECHAZADA -> DESCARTADO.
+        Si algo falla, no se guarda nada (transacción).
+        """
+        if estado not in self.ESTADO_REGISTRO:
+            raise ValueError('El estado debe ser ACEPTADA, CORREGIDA o RECHAZADA.')
+
+        ahora = timezone.now()
+        self.estado_revision = estado
+        self.json_corregido = json_corregido if estado == self.EstadoRevision.CORREGIDA else None
+        self.usuario_revisor = usuario
+        self.fecha_revision = ahora
+        self.full_clean()
+        self.save()
+
+        registro = self.registro
+        registro.estado_calidad = self.ESTADO_REGISTRO[estado]
+        registro.usuario_validador = usuario
+        registro.fecha_validacion = ahora
+        registro.full_clean()
+        registro.save()
+
+
+# =============================================================================
+# Auditoría (la llenan triggers de la base de datos, no la aplicación)
+# =============================================================================
+
+class Auditoria(models.Model):
+    # Tabla "auditoria": id_auditoria, tabla_afectada, id_registro_afectado,
+    #                    operacion, valores_anteriores, valores_nuevos,
+    #                    usuario_bd, fecha_hora
+    #
+    # Se modela SIN claves foráneas a propósito: es una tabla genérica, poblada por
+    # triggers AFTER INSERT/UPDATE/DELETE sobre registro, especie, usuario y
+    # extraccion_ia. Los triggers se crean en una migración (RunSQL). Desde la
+    # aplicación solo se consulta.
+
+    class Operacion(models.TextChoices):
+        INSERT = 'INSERT', 'INSERT'
+        UPDATE = 'UPDATE', 'UPDATE'
+        DELETE = 'DELETE', 'DELETE'
+
+    id_auditoria = models.AutoField(primary_key=True)
+    tabla_afectada = models.CharField('tabla afectada', max_length=50)
+    id_registro_afectado = models.IntegerField('id del registro afectado')
+    operacion = models.CharField('operación', max_length=10, choices=Operacion.choices)
+    valores_anteriores = models.JSONField('valores anteriores', null=True, blank=True)
+    valores_nuevos = models.JSONField('valores nuevos', null=True, blank=True)
+    # Usuario de conexión a nivel de base de datos (auditoría de infraestructura).
+    usuario_bd = models.CharField('usuario de BD', max_length=100)
+    fecha_hora = models.DateTimeField('fecha y hora', default=timezone.now)
+
+    class Meta:
+        db_table = 'auditoria'
+        verbose_name = 'registro de auditoría'
+        verbose_name_plural = 'auditoría'
+        ordering = ['-fecha_hora', '-id_auditoria']
+        indexes = [
+            models.Index(fields=['tabla_afectada', 'id_registro_afectado'], name='ix_auditoria_tabla_id'),
+        ]
+
+    def __str__(self):
+        return f'{self.operacion} en {self.tabla_afectada} #{self.id_registro_afectado}'
+
+

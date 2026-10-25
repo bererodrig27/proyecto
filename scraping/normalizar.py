@@ -36,16 +36,19 @@ def parsear_fecha(texto):
 
 
 def resolver_fecha(fecha_ia, fecha_pub):
-    """Fecha del avistamiento: la de la IA si es válida; si no, según FECHA_SI_FALTA."""
+    """Fecha del avistamiento y su origen: ('ia' | 'publicacion', fecha) o (None, None).
+
+    Usa la de la IA si es válida; si no, depende de FECHA_SI_FALTA (ver config.py).
+    """
     hoy = date.today()
     f = parsear_fecha(fecha_ia)
     if f and date(1900, 1, 1) <= f <= hoy:
-        return f
+        return f, "ia"
     if config.FECHA_SI_FALTA == "publicacion":
         p = parsear_fecha(fecha_pub)
         if p:
-            return min(p, hoy)
-    return None
+            return min(p, hoy), "publicacion"
+    return None, None
 
 
 def nombres_cientificos_candidatos(nombre_comun, nombre_cientifico) -> list:
@@ -67,33 +70,43 @@ def nombres_cientificos_candidatos(nombre_comun, nombre_cientifico) -> list:
     return candidatos
 
 
+def normalizar_tipo_registro(valor) -> str:
+    """Lleva lo que devolvió la IA a uno de config.TIPOS_REGISTRO ('otro' si no coincide)."""
+    v = normalizar_texto(valor if isinstance(valor, str) else "")
+    for tipo in config.TIPOS_REGISTRO:
+        if normalizar_texto(tipo) == v:
+            return tipo
+    return "otro"
+
+
+def _texto(valor) -> str:
+    return valor.strip() if isinstance(valor, str) else ""
+
+
 def normalizar_avistamiento(raw: dict, fecha_pub: str):
     """Valida y limpia un avistamiento crudo de la IA.
-    Devuelve (dato, None) o (None, motivo_de_descarte)."""
-    comun = (raw.get("nombre_comun") or "").strip()
-    lugar = (raw.get("lugar_texto") or "").strip()
+    Devuelve (dato, None) o (None, motivo_de_descarte).
+
+    La confianza no se evalúa acá: necesita el texto de la nota, el catálogo y la
+    geocodificación (ver confianza.py).
+    """
+    comun = _texto(raw.get("nombre_comun"))
+    lugar = _texto(raw.get("lugar_texto"))
     if not comun:
         return None, "sin nombre común"
-    if not lugar:
+    if not lugar and config.REQUIERE_UBICACION:
         return None, "sin lugar"
 
-    try:
-        confianza = float(raw.get("confianza"))
-    except (TypeError, ValueError):
-        confianza = 0.0
-    confianza = max(0.0, min(1.0, confianza))
-    if confianza < config.CONFIANZA_MINIMA:
-        return None, f"confianza baja ({confianza})"
-
-    fecha = resolver_fecha(raw.get("fecha_avistamiento"), fecha_pub)
-    if fecha is None:
+    fecha, origen_fecha = resolver_fecha(raw.get("fecha_avistamiento"), fecha_pub)
+    if fecha is None and config.FECHA_SI_FALTA == "omitir":
         return None, "sin fecha válida"
 
     return {
         "nombre_comun": comun,
         "candidatos_cientificos": nombres_cientificos_candidatos(comun, raw.get("nombre_cientifico")),
-        "lugar_texto": lugar,
+        "lugar_texto": " ".join(lugar.split())[:200],
         "fecha": fecha,
-        "cita": " ".join((raw.get("cita") or "").split()[:25]),
-        "confianza": confianza,
+        "fecha_origen": origen_fecha,
+        "tipo_registro": normalizar_tipo_registro(raw.get("tipo_registro")),
+        "cita": " ".join(_texto(raw.get("cita")).split()[:25]),
     }, None

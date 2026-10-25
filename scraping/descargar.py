@@ -2,7 +2,7 @@
 import time
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
-
+import re 
 import requests
 from bs4 import BeautifulSoup
 
@@ -49,6 +49,21 @@ def descargar(url: str):
         time.sleep(config.PAUSA_SEGUNDOS)
 
 
+
+def fecha_publicacion(soup, meta):
+    """Fecha de publicación con varios respaldos: metatags, JSON-LD y <time datetime>."""
+    f = meta("article:published_time", "og:article:published_time", "datePublished",
+             "date", "pubdate", "DC.date.issued")
+    if f:
+        return f
+    for s in soup.find_all("script", type="application/ld+json"):
+        m = re.search(r'"datePublished"\s*:\s*"([^"]+)"', s.string or s.get_text() or "")
+        if m:
+            return m.group(1)
+    t = soup.find("time", attrs={"datetime": True})
+    return t["datetime"].strip() if t else ""
+
+
 def extraer_nota(html: str) -> dict:
     """Extrae título, fecha de publicación y texto limpio de una nota."""
     soup = BeautifulSoup(html, "html.parser")
@@ -61,7 +76,7 @@ def extraer_nota(html: str) -> dict:
         return ""
 
     titulo = meta("og:title") or (soup.title.string.strip() if soup.title and soup.title.string else "")
-    fecha = meta("article:published_time", "date", "pubdate")
+    fecha = fecha_publicacion(soup, meta)
 
     contenedor = soup.find("article") or soup
     for basura in contenedor(["script", "style", "nav", "footer", "aside", "form"]):

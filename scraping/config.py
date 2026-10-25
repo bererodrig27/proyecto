@@ -8,7 +8,7 @@ DATOS_DIR.mkdir(exist_ok=True)
 
 # ------------------------------------------------------------------ DJANGO
 DJANGO_SETTINGS_MODULE = "config.settings"   # AJUSTAR
-APP_MODELOS = "MisionaBio"                   # AJUSTAR (app donde están Especie, Fuente, Registro)
+APP_MODELOS = "MisionaBio"                   # AJUSTAR (app con Fuente, Noticia, Especie, Ubicacion, Registro y ExtraccionIA)
 
 # ------------------------------------------------------------------ DESCUBRIMIENTO
 FEEDS = {
@@ -16,10 +16,15 @@ FEEDS = {
     "Misiones Online - fauna silvestre": "https://misionesonline.net/etiqueta/fauna-silvestre/feed/",
     "Misiones Online - fauna misionera": "https://misionesonline.net/etiqueta/fauna-misionera/feed/",
     "Misiones Online - general": "https://misionesonline.net/feed/",
+    "Primera Edición - fauna": "https://www.primeraedicion.com.ar/nota/tag/fauna/feed/",
 }
-PAGINAS_POR_FEED = 10
 
-SITIOS_WP = {"Misiones Online": "https://misionesonline.net"}
+SITIOS_WP = {
+    "Misiones Online": "https://misionesonline.net",
+    "Primera Edición": "https://www.primeraedicion.com.ar",
+}
+
+MAX_NOTAS_POR_CORRIDA = 30
 TERMINOS_BUSQUEDA = [
     "yaguareté", "puma", "tapir", "oso hormiguero", "carayá", "tucán",
     "aguará guazú", "yarará", "coatí", "ocelote", "avistamiento fauna",
@@ -28,7 +33,7 @@ TERMINOS_BUSQUEDA = [
 PAGINAS_POR_BUSQUEDA = 3
 URLS_MANUALES = []
 
-PROCESADAS = DATOS_DIR / "urls_procesadas.txt"
+PROCESADAS = DATOS_DIR / "urls_procesadas.txt"   # solo con GUARDAR_EN_BD = False; con BD las URLs vistas salen de la tabla noticia
 LOG_CSV = DATOS_DIR / "avistamientos_extraidos.csv"   # auditoría de lo que devolvió la IA
 
 # ------------------------------------------------------------------ DESCARGA
@@ -42,6 +47,11 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_PAUSA = 4              # segundos entre llamadas (cuidar cuota del plan gratuito)
 GEMINI_REINTENTOS = 3
+PROMPT_VERSION = "v2"         # subir cuando cambie el PROMPT de extraer_ia.py (se guarda en extraccion_ia)
+# Valores que puede devolver la IA en tipo_registro (el último es el valor por defecto).
+TIPOS_REGISTRO = [
+    "avistamiento directo", "rastro", "cámara trampa", "hallazgo", "captura o rescate", "otro",
+]
 MAX_CHARS_TEXTO = 12000       # se recorta el texto de la nota para limitar tokens
 FILTRO_PREVIO = True          # no llama a la IA si la nota no tiene ninguna palabra clave
 PALABRAS_CLAVE = [
@@ -52,23 +62,29 @@ PALABRAS_CLAVE = [
 ]
 
 # ------------------------------------------------------------------ VALIDACIÓN
-CONFIANZA_MINIMA = 0.5
+# La confianza de cada extracción la calcula el sistema (confianza.py) y NO es la que
+# declara el modelo de lenguaje. Cada control vale entre 0 y 1; el resultado es el
+# promedio ponderado (los pesos se normalizan solos, no hace falta que sumen 1).
+PESOS_CONFIANZA = {
+    "cita_en_texto": 0.25,        # la frase que respalda el registro aparece en la nota
+    "especie_en_catalogo": 0.20,  # la especie coincide con una del catálogo
+    "especie_en_texto": 0.15,     # el nombre común aparece en la nota
+    "lugar_en_texto": 0.15,       # el lugar aparece en la nota
+    "fecha": 0.15,                # fecha explícita (1) o tomada de la publicación (0.4)
+    "geocodificacion": 0.10,      # diccionario (1) o Nominatim/caché (0.6)
+}
+CONFIANZA_MINIMA = 0.40   # por debajo de este valor la extracción se descarta (solo queda en el CSV)
 # Caja aproximada de Misiones (con margen): lat_min, lat_max, lon_min, lon_max
 MISIONES_BBOX = (-28.25, -25.45, -56.15, -53.55)
-FECHA_SI_FALTA = "publicacion"   # "publicacion" (usa fecha de la nota) o "omitir"
+FECHA_SI_FALTA = "nula"   # "nula" (fecha vacía, como permite el modelo), "publicacion" (usa la de la nota) u "omitir" (descarta)
 COORD_DECIMALES = 4
 
 # ------------------------------------------------------------------ BASE DE DATOS
-GUARDAR_EN_BD = True
-REQUIERE_ESPECIE_PARA_BD = True   # False: crea el registro con especie=NULL
-FUENTE_DEFAULTS = {}              # campos extra obligatorios de `fuente`
-# Campos OPCIONALES de Registro. Solo se completan si el modelo los tiene.
-# {dato_que_extrae_la_IA: nombre_del_campo_en_Registro}
-CAMPOS_OPCIONALES_REGISTRO = {
-    "cita": "cita_textual",
-    "confianza": "confianza_ia",
-    "url": "url_fuente",
-}
+GUARDAR_EN_BD = True                # False: solo escribe el CSV, sin tocar la base
+REQUIERE_ESPECIE_PARA_BD = False    # False: guarda el registro con especie vacía y el Administrador la resuelve
+REQUIERE_UBICACION = False          # False: guarda el registro sin ubicación si no se pudo geocodificar
+PRECISION_UBICACION = "APROXIMADA"  # EXACTA / APROXIMADA / OFUSCADA (las coordenadas son aproximadas)
+EXTRACTO_CHARS = 500                # caracteres de la nota que se conservan (nunca el texto completo)
 
 # ------------------------------------------------------------------ GEOCODIFICACIÓN
 USAR_NOMINATIM = True

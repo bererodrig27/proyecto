@@ -102,7 +102,6 @@
             <th scope="col">Coordenadas</th>
             <th scope="col">Fuente</th>
             <th scope="col">Calidad</th>
-            <th scope="col">Imágenes</th>
             <th scope="col">
               <span class="sr-only">Acciones</span>
             </th>
@@ -153,28 +152,25 @@
               </td>
 
               <td>
-                {{ r.fuente }}
+                {% if r.noticia and r.noticia.url %}
+                  <a
+                    href="{{ r.noticia.url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="{{ r.noticia.titulo }}">
+                    {{ r.fuente|default:"Ver nota" }}
+                    <span aria-hidden="true">↗</span>
+                    <span class="sr-only">(abre la nota original en una pestaña nueva)</span>
+                  </a>
+                {% else %}
+                  {{ r.fuente|default:"—" }}
+                {% endif %}
               </td>
 
               <td>
                 <span class="badge badge--{{ r.estado_calidad|lower }}">
                   {{ r.get_estado_calidad_display }}
                 </span>
-              </td>
-
-              <td>
-                {% if r.imagenes.all %}
-                  <span class="image-count">
-                    {{ r.imagenes.count }}
-                    {% if r.imagenes.count == 1 %}
-                      imagen
-                    {% else %}
-                      imágenes
-                    {% endif %}
-                  </span>
-                {% else %}
-                  <span class="muted">—</span>
-                {% endif %}
               </td>
 
               <td class="row-actions">
@@ -204,7 +200,7 @@
           {% empty %}
 
             <tr>
-              <td colspan="8" class="empty">
+              <td colspan="7" class="empty">
 
                 {% if hay_filtros %}
                   Ningún avistamiento coincide con los filtros.
