@@ -26,6 +26,8 @@ def urls_de_feed(nombre: str, url_feed: str):
 
 def urls_de_busqueda(nombre: str, base: str, termino: str):
     """API wp-json; si falla, RSS de búsqueda."""
+    if nombre in config.SITIOS_NACIONALES:
+        termino = f"{termino} Misiones"     # medio de alcance nacional: acotar a Misiones
     urls = []
     for pagina in range(1, config.PAGINAS_POR_BUSQUEDA + 1):
         print(f"Búsqueda '{termino}' en {nombre} (pág. {pagina})")
@@ -84,4 +86,4 @@ def descubrir(ya_procesadas=None):
     print(f"\nURLs encontradas: {len(candidatas)} | nuevas y únicas: {len(unicas)}")
     if len(unicas) > config.MAX_NOTAS_POR_CORRIDA:
         print("Se alcanzó el tope por corrida: volvé a ejecutar para seguir con las que faltan.")
-    return unicas[: config.MAX_NOTAS_POR_CORRIDA]
+    return unicas[: config.MAX_NOTAS_POR_CORRIDA]

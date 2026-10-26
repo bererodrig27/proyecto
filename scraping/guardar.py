@@ -6,6 +6,7 @@ o rechazar). La noticia de origen se conserva con su URL para que la procedencia
 verificable.
 """
 import csv
+import re
 from datetime import datetime
 from decimal import Decimal
 from importlib import import_module
@@ -15,7 +16,7 @@ from django.db import transaction
 
 from . import config
 from .descubrir import cargar_procesadas
-from .normalizar import parsear_fecha
+from .normalizar import parsear_fecha, normalizar_texto
 
 _models = import_module(f"{config.APP_MODELOS}.models")
 Especie, Fuente, Noticia = _models.Especie, _models.Fuente, _models.Noticia
@@ -87,17 +88,45 @@ def cerrar_noticia(noticia, estado):
 
 
 # ------------------------------------------------------------------ avistamientos
+_catalogo = None
+
+
+def _cargar_catalogo() -> dict:
+    """Catálogo de especies en memoria, con los nombres normalizados (sin tildes ni mayúsculas).
+    Se lee una sola vez por corrida. nombre_comun puede traer varios nombres separados por , ; / o ' o '."""
+    global _catalogo
+    if _catalogo is None:
+        _catalogo = {"cientifico": {}, "comun": {}}
+        for e in Especie.objects.all():
+            _catalogo["cientifico"][normalizar_texto(e.nombre_cientifico)] = e
+            for alias in re.split(r"\s*[,;/]\s*|\s+o\s+", e.nombre_comun or ""):
+                alias = normalizar_texto(alias)
+                if alias:
+                    _catalogo["comun"].setdefault(alias, []).append(e)
+    return _catalogo
+
+
 def buscar_especie(candidatos: list, nombre_comun: str):
-    """Especie del catálogo por nombre científico; si no, por nombre común (solo si es único)."""
+    """Especie del catálogo (tabla especie) o None si no está cargada.
+
+    1) por nombre científico; 2) por nombre común exacto; 3) por nombre común contenido en
+    el que dio la IA ('yaguareté overo' -> 'Yaguareté'). En 2 y 3 solo si es una única especie.
+    La comparación ignora tildes y mayúsculas.
+    """
+    cat = _cargar_catalogo()
     for cientifico in candidatos:
-        especie = Especie.objects.filter(nombre_cientifico__iexact=cientifico).first()
+        especie = cat["cientifico"].get(normalizar_texto(cientifico))
         if especie:
             return especie
-    if nombre_comun:
-        coincidencias = list(Especie.objects.filter(nombre_comun__iexact=nombre_comun)[:2])
-        if len(coincidencias) == 1:
-            return coincidencias[0]
-    return None
+    comun = normalizar_texto(nombre_comun)
+    if not comun:
+        return None
+    exactas = {e.pk: e for e in cat["comun"].get(comun, [])}
+    if len(exactas) == 1:
+        return next(iter(exactas.values()))
+    contenidas = {e.pk: e for alias, lista in cat["comun"].items()
+                  if re.search(rf"\b{re.escape(alias)}\b", comun) for e in lista}
+    return next(iter(contenidas.values())) if len(contenidas) == 1 else None
 
 
 def es_duplicado(especie, fecha, geo) -> bool:
@@ -113,17 +142,22 @@ def es_duplicado(especie, fecha, geo) -> bool:
     ).exists()
 
 
-def _obtener_ubicacion(av: dict, geo):
+def _obtener_ubicacion(geo):
+    """Ubicacion del avistamiento. En vez del fragmento de texto de la nota se guarda el
+    lugar normalizado (localidad o área) y el departamento; el texto original queda en
+    extraccion_ia.json_extraido y en el CSV de auditoría."""
     lat, lon = round(geo.lat, config.COORD_DECIMALES), round(geo.lon, config.COORD_DECIMALES)
+    nombre = (geo.zona or geo.departamento or "Misiones")[:200]
     existente = Ubicacion.objects.filter(
-        nombre_lugar=av["lugar_texto"],
+        nombre_lugar=nombre, departamento=geo.departamento,
         latitud__range=(lat - _TOLERANCIA, lat + _TOLERANCIA),
         longitud__range=(lon - _TOLERANCIA, lon + _TOLERANCIA),
     ).first()
     if existente:
         return existente
     ubicacion = Ubicacion(
-        nombre_lugar=av["lugar_texto"], zona=(geo.zona or "")[:100],
+        nombre_lugar=nombre, departamento=geo.departamento,
+        zona=(geo.zona or "")[:100],   # queda como antes; ya no hace falta si usás departamento
         latitud=lat, longitud=lon, precision=config.PRECISION_UBICACION,
     )
     ubicacion.full_clean()
@@ -137,8 +171,8 @@ def guardar_avistamiento(noticia, av: dict, especie, geo, confianza: float, json
     registro = Registro(
         noticia=noticia,
         especie=especie,                 # None hasta que el Administrador la resuelva
-        ubicacion=_obtener_ubicacion(av, geo) if geo else None,
-        fecha_avistamiento=av["fecha"],  # None si la nota no la precisa
+        ubicacion=_obtener_ubicacion(geo) if geo else None,
+        fecha_avistamiento=av["fecha"],  # None solo con FECHA_SI_FALTA = "nula" / "publicacion"
         tipo_registro=av["tipo_registro"],
         estado_calidad=Registro.EstadoCalidad.PENDIENTE,
         fragmento_origen=av["cita"],
@@ -161,7 +195,7 @@ def guardar_avistamiento(noticia, av: dict, especie, geo, confianza: float, json
 
 # ------------------------------------------------------------------ CSV de auditoría
 _COLUMNAS = ["url", "titulo", "nombre_comun", "nombre_cientifico", "lugar_texto", "lat", "lon",
-             "metodo_geo", "fecha", "confianza", "cita", "resultado", "fecha_scraping"]
+             "departamento", "metodo_geo", "fecha", "confianza", "cita", "resultado", "fecha_scraping"]
 
 
 def registrar_csv(fila: dict):

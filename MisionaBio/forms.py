@@ -106,17 +106,29 @@ class AvistamientoForm(forms.ModelForm):
     """
     Carga/edición manual de un avistamiento (solo Administrador).
 
-    Un avistamiento (Registro) depende de dos tablas más: la Noticia que lo respalda
-    (obligatoria) y la Ubicacion (opcional). Por eso el formulario pide esos datos en
-    campos propios y expone resolver_noticia() / resolver_ubicacion(), que la vista
+    Un avistamiento (Registro) puede tener dos procedencias:
+      - MANUAL (carga nueva desde este formulario): no necesita noticia. Se respalda
+        con "observaciones" y con el usuario que lo carga. La URL de una noticia es
+        solo un enlace de referencia opcional.
+      - SCRAPING (registro generado por el scraping que el Administrador edita acá):
+        conserva su noticia, que sigue siendo obligatoria.
+
+    El origen NO es un campo del formulario: se fija en __init__ (los registros
+    nuevos son MANUAL; los existentes conservan el suyo).
+
+    El formulario expone resolver_noticia() / resolver_ubicacion(), que la vista
     llama dentro de una transacción para crear o reutilizar esas filas.
+    resolver_noticia() devuelve None si no se indicó ninguna URL.
     """
 
-    # --- Noticia que respalda el avistamiento ---
+    # --- Noticia de referencia (opcional en cargas manuales) ---
     noticia_url = forms.URLField(
-        label='URL de la noticia', max_length=500,
+        label='Enlace de referencia (opcional)', max_length=500, required=False,
         widget=forms.URLInput(attrs={'placeholder': 'https://…'}),
-        help_text='Si la noticia ya está cargada, se reutiliza y no hace falta completar título ni medio.',
+        help_text=(
+            'Si el avistamiento salió en una noticia, pegá su URL. Si la noticia ya está '
+            'cargada, se reutiliza y no hace falta completar título ni medio.'
+        ),
     )
     noticia_titulo = forms.CharField(label='Título de la noticia', max_length=300, required=False)
     noticia_fuente = forms.ModelChoiceField(
@@ -159,23 +171,33 @@ class AvistamientoForm(forms.ModelForm):
             'fecha_avistamiento',
             'tipo_registro',
             'estado_calidad',
+            'observaciones',
             'fragmento_origen',
         ]
         widgets = {
             'fecha_avistamiento': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'tipo_registro': forms.TextInput(attrs={'placeholder': 'Ej. avistamiento directo, rastro, cámara trampa'}),
+            'observaciones': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Quién lo observó, cómo se tuvo conocimiento, circunstancias…',
+            }),
             'fragmento_origen': forms.Textarea(attrs={'rows': 3}),
         }
         help_texts = {
             'especie': 'Dejala vacía si todavía no se pudo identificar.',
-            'fecha_avistamiento': 'Dejala vacía si la noticia no la precisa.',
-            'fragmento_origen': 'Texto de la noticia que respalda el avistamiento.',
+            'fecha_avistamiento': 'Dejala vacía si no se conoce con precisión.',
+            'observaciones': (
+                'Obligatorio en cargas manuales: es el respaldo del avistamiento '
+                '(quién lo vio, cómo se supo, circunstancias).'
+            ),
+            'fragmento_origen': 'Texto de la noticia que respalda el avistamiento (si hay noticia).',
         }
 
-    # Orden de aparición: avistamiento, noticia, ubicación y, al final, el fragmento
-    # (textarea de ancho completo).
+    # Orden de aparición: avistamiento, respaldo (observaciones), noticia de
+    # referencia, ubicación y, al final, el fragmento (textarea de ancho completo).
     field_order = [
         'especie', 'fecha_avistamiento', 'tipo_registro', 'estado_calidad',
+        'observaciones',
         'noticia_url', 'noticia_titulo', 'noticia_fuente', 'noticia_fecha_publicacion',
         'lugar_nombre', 'lugar_zona', 'lugar_latitud', 'lugar_longitud', 'lugar_precision',
         'fragmento_origen',
@@ -186,13 +208,32 @@ class AvistamientoForm(forms.ModelForm):
         self.fields['especie'].queryset = Especie.objects.order_by('nombre_cientifico')
         self.fields['especie'].empty_label = 'Sin identificar'
 
+        # El origen lo decide el servidor, no el usuario: todo registro nuevo creado
+        # desde este formulario es una carga manual. Se fija ANTES de validar para que
+        # Registro.clean() aplique las reglas de procedencia correctas.
+        if not self.instance.pk:
+            self.instance.origen_registro = Registro.OrigenRegistro.MANUAL
+            # Las cargas manuales del Administrador nacen validadas.
+            self.initial.setdefault('estado_calidad', Registro.EstadoCalidad.VALIDADO)
+
+        self.es_manual = self.instance.origen_registro == Registro.OrigenRegistro.MANUAL
+
+        # En un registro de scraping la noticia sigue siendo obligatoria.
+        if not self.es_manual:
+            self.fields['noticia_url'].required = True
+            self.fields['noticia_url'].label = 'URL de la noticia'
+            self.fields['noticia_url'].help_text = (
+                'Si la noticia ya está cargada, se reutiliza y no hace falta completar título ni medio.'
+            )
+
         # Al editar, los campos de noticia y ubicación se precargan desde el registro.
         if self.instance.pk:
-            noticia = self.instance.noticia
-            self.initial.setdefault('noticia_url', noticia.url)
-            self.initial.setdefault('noticia_titulo', noticia.titulo)
-            self.initial.setdefault('noticia_fuente', noticia.fuente_id)
-            self.initial.setdefault('noticia_fecha_publicacion', noticia.fecha_publicacion)
+            if self.instance.noticia_id:
+                noticia = self.instance.noticia
+                self.initial.setdefault('noticia_url', noticia.url)
+                self.initial.setdefault('noticia_titulo', noticia.titulo)
+                self.initial.setdefault('noticia_fuente', noticia.fuente_id)
+                self.initial.setdefault('noticia_fecha_publicacion', noticia.fecha_publicacion)
             ubicacion = self.instance.ubicacion
             if ubicacion:
                 self.initial.setdefault('lugar_nombre', ubicacion.nombre_lugar)
@@ -204,7 +245,8 @@ class AvistamientoForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
 
-        # Título y medio solo son obligatorios si la noticia todavía no existe.
+        # Título y medio solo son obligatorios si se indicó una URL y esa noticia
+        # todavía no existe. Sin URL (carga manual sin noticia) no se pide nada.
         url = cleaned.get('noticia_url')
         if url and not Noticia.objects.filter(url=url).exists():
             if not cleaned.get('noticia_titulo'):
@@ -225,18 +267,24 @@ class AvistamientoForm(forms.ModelForm):
 
     def resolver_noticia(self):
         """
-        Devuelve la Noticia del avistamiento (la URL es única):
+        Devuelve la Noticia del avistamiento, o None si no se indicó URL
+        (solo posible en cargas manuales). La URL es única:
+        - Sin URL: devuelve None.
         - URL nueva: crea la noticia (origen MANUAL).
         - URL de la noticia actual del registro: se corrigen sus datos.
         - URL de otra noticia ya cargada: se reutiliza sin modificarla.
         """
         cd = self.cleaned_data
-        existente = Noticia.objects.filter(url=cd['noticia_url']).first()
+        url = cd.get('noticia_url')
+        if not url:
+            return None
+
+        existente = Noticia.objects.filter(url=url).first()
 
         if existente is None:
             return Noticia.objects.create(
                 fuente=cd['noticia_fuente'],
-                url=cd['noticia_url'],
+                url=url,
                 titulo=_limpiar_espacios(cd['noticia_titulo']),
                 fecha_publicacion=cd.get('noticia_fecha_publicacion'),
                 origen=Noticia.Origen.MANUAL,
@@ -267,7 +315,6 @@ class AvistamientoForm(forms.ModelForm):
         }
         return Ubicacion.objects.filter(**datos).first() or Ubicacion.objects.create(**datos)
 
-
 class AvistamientoFiltroForm(forms.Form):
     q = forms.CharField(
         label='Buscar especie', required=False,
@@ -276,6 +323,10 @@ class AvistamientoFiltroForm(forms.Form):
     fuente = forms.ModelChoiceField(
         label='Fuente', required=False, empty_label='Todas',
         queryset=Fuente.objects.all(),
+    )
+    origen = forms.ChoiceField(                      # <-- NUEVO
+        label='Origen', required=False,
+        choices=[('', 'Todos')] + list(Registro.OrigenRegistro.choices),
     )
     estado = forms.ChoiceField(
         label='Estado de calidad', required=False,

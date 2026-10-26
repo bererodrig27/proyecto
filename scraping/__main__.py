@@ -37,7 +37,8 @@ def main():
 
     print(f"\nResumen: {dict(stats)} | descargas: {EST_DESCARGA}")
     if guardar.ESPECIES_NO_CARGADAS:
-        print("Especies que no están en el catálogo: " + ", ".join(sorted(guardar.ESPECIES_NO_CARGADAS)))
+        print("Especies mencionadas que no están en el catálogo (no se registraron): "
+              + ", ".join(sorted(guardar.ESPECIES_NO_CARGADAS)))
 
 
 def procesar_nota(url: str, stats: Counter):
@@ -104,18 +105,20 @@ def procesar_avistamiento(raw: dict, nota: dict, noticia, url: str) -> str:
         return descartar(motivo)
     fila["fecha"] = av["fecha"]
 
-    geo = geocodificar(av["lugar_texto"]) if av["lugar_texto"] else None
-    if geo is None and config.REQUIERE_UBICACION:
-        return descartar(f"no se pudo ubicar '{av['lugar_texto']}' en Misiones")
-    if geo:
-        fila.update(lat=geo.lat, lon=geo.lon, metodo_geo=geo.metodo)
-
+    # Solo se registran especies que ya están en el catálogo. Se verifica antes de
+    # geocodificar para no gastar consultas a Nominatim en avistamientos que se descartan.
     especie = guardar.buscar_especie(av["candidatos_cientificos"], av["nombre_comun"])
     if especie is None:
         faltante = av["candidatos_cientificos"][0] if av["candidatos_cientificos"] else av["nombre_comun"]
         guardar.ESPECIES_NO_CARGADAS.add(faltante)
         if config.REQUIERE_ESPECIE_PARA_BD:
             return descartar(f"especie no cargada ({faltante})")
+
+    geo = geocodificar(av["lugar_texto"]) if av["lugar_texto"] else None
+    if geo is None and config.REQUIERE_UBICACION:
+        return descartar(f"no se pudo ubicar '{av['lugar_texto']}' en Misiones")
+    if geo:
+        fila.update(lat=geo.lat, lon=geo.lon, metodo_geo=geo.metodo, departamento=geo.departamento)
 
     confianza, controles = calcular_confianza(av, nota["texto"], especie is not None, geo)
     fila["confianza"] = confianza
@@ -135,7 +138,10 @@ def procesar_avistamiento(raw: dict, nota: dict, noticia, url: str) -> str:
             print(f"  [BD error] {type(e).__name__}: {e}")
             resultado = "error"
 
-    donde = f"{av['lugar_texto'] or 'sin lugar'} ({geo.metodo if geo else 'sin ubicar'})"
+    if geo:
+        donde = f"{geo.zona or av['lugar_texto']} / depto. {geo.departamento or '?'} ({geo.metodo})"
+    else:
+        donde = f"{av['lugar_texto'] or 'sin lugar'} (sin ubicar)"
     sin_especie = "" if especie else " | sin especie en catálogo"
     print(f"  -> {av['nombre_comun']} @ {donde} | confianza {confianza}{sin_especie}: {resultado}")
     guardar.registrar_csv({**fila, "resultado": resultado})

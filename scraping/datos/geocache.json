@@ -1,42 +1,60 @@
 {
- "ruta 101": [
-  -27.0833719,
-  -54.8311947,
-  ""
- ],
- "cataratas": [
-  -25.6838271,
-  -54.4490235,
-  "Municipio de Puerto Iguazú"
- ],
- "area cataratas": null,
- "sobre la ruta provincial 216, a unos 300 metros del acceso a la unidad penal i": null,
- "ruta nacional 12, en la zona del parque provincial puerto peninsula": null,
- "misiones": [
-  -27.4212125,
-  -55.9356106,
-  "Municipio de Posadas"
- ],
- "la calle los claveles, a la altura del numero 10.000": null,
- "balneario el brete": [
-  -27.3548008,
-  -55.9035563,
-  "Municipio de Posadas"
- ],
- "guira oga": null,
- "rutas de misiones": [
-  -27.4626359,
-  -55.2962084,
-  ""
- ],
- "barrio jardin, en san vicente": null,
- "barrio belgrano, en san jose": null,
  "reserva natural de la defensa puerto peninsula": null,
- "ruta nacional 14 en san vicente": null,
- "alrededores del viejo hotel cataratas": null,
+ "vera de la ruta nacional n° 14": null,
  "parque provincial esmeralda": [
   -26.9837255,
   -53.9060535,
+  "",
+  "San Pedro"
+ ],
+ "en las cercanias de la estacion cataratas": null,
+ "darsenas de embarque": null,
+ "salto encantado": [
+  -27.0858081,
+  -54.8327637,
+  "Salto Encantado",
+  "Cainguás"
+ ],
+ "cercos adaptados": null,
+ "barrio san ramon": [
+  -27.8703053,
+  -55.1384113,
+  "San Javier",
+  "San Javier"
+ ],
+ "ruta provincial n°17 en la localidad de santiago de liniers en la noche de ayer, a 300 metros del lugar conocido como cerro sesenta": null,
+ "ruta provincial n°17": [
+  -27.5014846,
+  -55.9707505,
+  "Municipio de Posadas",
+  "Capital"
+ ],
+ "ruta provincia nº 19 a la altura del cruce del parque provincial uruguay": null,
+ "orillas del arroyo «tacuara»": null,
+ "parque ecologico el puma": [
+  -27.4589196,
+  -55.8004114,
+  "Municipio de Candelaria",
+  "Candelaria"
+ ],
+ "almafuerte": [
+  -27.5080989,
+  -55.4034658,
+  "Departamento Leandro N. Alem",
   ""
- ]
+ ],
+ "las 2000 hectareas": [
+  -27.4727832,
+  -55.1134283,
+  "Oberá",
+  "Oberá"
+ ],
+ "parque ecologico \"el puma\"": [
+  -27.4589196,
+  -55.8004114,
+  "Municipio de Candelaria",
+  "Candelaria"
+ ],
+ "una de las alcantarillas intervenidas": null,
+ "ruta nacional 12, a la altura del kilometro 1627, cerca de puerto peninsula": null
 }

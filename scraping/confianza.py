@@ -10,7 +10,7 @@ from . import config
 from .normalizar import normalizar_texto
 
 PUNTAJE_GEO = {"diccionario": 1.0, "cache": 0.6, "nominatim": 0.6}
-PUNTAJE_FECHA = {"ia": 1.0, "publicacion": 0.4}
+PUNTAJE_FECHA = {"ia": 1.0, "publicacion": 0.4, "hoy": 0.2}
 
 
 def _palabras(texto: str) -> list:

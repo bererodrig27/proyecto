@@ -405,6 +405,8 @@ def avistamiento_lista(request):
     form.is_valid()
     cd = form.cleaned_data
 
+    # noticia es opcional (cargas manuales): select_related usa LEFT JOIN, así que
+    # los registros sin noticia siguen apareciendo en el listado.
     registros = Registro.objects.select_related('especie', 'ubicacion', 'noticia__fuente')
 
     if cd.get('q'):
@@ -413,7 +415,10 @@ def avistamiento_lista(request):
             Q(especie__nombre_cientifico__icontains=q) | Q(especie__nombre_comun__icontains=q)
         )
     if cd.get('fuente'):
+        # Ojo: filtrar por medio deja afuera las cargas manuales sin noticia.
         registros = registros.filter(noticia__fuente=cd['fuente'])
+    if cd.get('origen'):
+        registros = registros.filter(origen_registro=cd['origen'])
     if cd.get('estado'):
         registros = registros.filter(estado_calidad=cd['estado'])
     if cd.get('zona'):
@@ -430,7 +435,7 @@ def avistamiento_lista(request):
         'page_obj': page_obj,
         'page_range': page_range,
         'total': page_obj.paginator.count,
-        'hay_filtros': any(cd.get(k) for k in ('q', 'fuente', 'estado', 'zona', 'desde', 'hasta')),
+        'hay_filtros': any(cd.get(k) for k in ('q', 'fuente', 'origen', 'estado', 'zona', 'desde', 'hasta')),
         'querystring': _querystring_sin_pagina(request),
     })
 
@@ -450,17 +455,24 @@ def avistamiento_detalle(request, pk):
 @transaction.atomic
 def _guardar_avistamiento(request, form):
     """
-    Guarda el avistamiento con su noticia y su ubicación (todo o nada) y deja
-    constancia de quién lo cargó y quién lo validó (RNF10).
+    Guarda el avistamiento con su noticia (opcional en cargas manuales) y su
+    ubicación (todo o nada) y deja constancia de quién lo cargó y quién lo validó
+    (RNF10).
     """
     registro = form.save(commit=False)
     es_nuevo = registro.pk is None
 
+    # None si no se indicó URL (carga manual sin noticia de referencia).
     registro.noticia = form.resolver_noticia()
     registro.ubicacion = form.resolver_ubicacion()
 
     if es_nuevo:
+        # Todo lo que se crea desde este formulario es una carga manual. El origen
+        # y el usuario los fija el servidor, nunca el formulario.
+        registro.origen_registro = Registro.OrigenRegistro.MANUAL
         registro.usuario_carga = request.user
+    # Al editar no se tocan origen_registro ni usuario_carga: un registro de
+    # scraping sigue siéndolo aunque lo corrija el Administrador.
 
     if registro.estado_calidad == Registro.EstadoCalidad.PENDIENTE:
         registro.usuario_validador = None
@@ -477,8 +489,9 @@ def _guardar_avistamiento(request, form):
 @solo_admin
 def avistamiento_crear(request):
     """
-    Carga manual: solo el Administrador. El registro nace VALIDADO y sin extracción
-    de IA (los avistamientos que llegan por scraping se revisan en ExtraccionIA).
+    Carga manual: solo el Administrador. El registro nace VALIDADO, con origen
+    MANUAL, sin extracción de IA y sin necesidad de noticia (los avistamientos que
+    llegan por scraping se revisan en ExtraccionIA).
     """
     initial = {'estado_calidad': Registro.EstadoCalidad.VALIDADO}
 
@@ -528,13 +541,3 @@ def avistamiento_eliminar(request, pk):
         messages.success(request, 'El avistamiento se eliminó.')
         return redirect('avistamientos:lista')
     return render(request, 'MisionaBio/avistamientos/confirmar_eliminar.html', {'registro': registro})
-def registro(request):
-    if request.method == 'POST':
-        form = RegistroUsuarioForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Cuenta creada correctamente. Ya podés iniciar sesión.')
-            return redirect('login')
-    else:
-        form = RegistroUsuarioForm()
-    return render(request, 'MisionaBio/registro.html', {'form': form})

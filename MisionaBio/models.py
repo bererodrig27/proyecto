@@ -8,6 +8,7 @@ from django.db import models, transaction
 from django.utils import timezone
 
 
+
 # =============================================================================
 # Usuarios y roles
 # =============================================================================
@@ -274,20 +275,53 @@ class Especie(models.Model):
 # Ubicación (lugar del avistamiento)
 # =============================================================================
 
+DEPARTAMENTOS = [(d, d) for d in [
+    "Apóstoles", "Cainguás", "Candelaria", "Capital", "Concepción", "Eldorado",
+    "General Manuel Belgrano", "Guaraní", "Iguazú", "Leandro N. Alem",
+    "Libertador General San Martín", "Montecarlo", "Oberá", "San Ignacio",
+    "San Javier", "San Pedro", "25 de Mayo"]]
+
 class Ubicacion(models.Model):
-    # Tabla "ubicacion": id_ubicacion, nombre_lugar, zona, latitud, longitud, precision
+    # Tabla "ubicacion": id_ubicacion, nombre_lugar, zona, departamento, latitud, longitud, precision
     #
     # Las coordenadas son aproximadas: salen de geocodificar el lugar que
     # menciona la noticia. "precision" indica qué tan confiable es el punto.
+    # "departamento" es el departamento de Misiones donde cae el lugar (vacío si no se pudo determinar).
 
     class Precision(models.TextChoices):
         EXACTA = 'EXACTA', 'Exacta'
         APROXIMADA = 'APROXIMADA', 'Aproximada'
         OFUSCADA = 'OFUSCADA', 'Ofuscada'
 
+    class Departamento(models.TextChoices):                                  # <-- NUEVO
+        APOSTOLES = 'Apóstoles', 'Apóstoles'
+        CAINGUAS = 'Cainguás', 'Cainguás'
+        CANDELARIA = 'Candelaria', 'Candelaria'
+        CAPITAL = 'Capital', 'Capital'
+        CONCEPCION = 'Concepción', 'Concepción'
+        ELDORADO = 'Eldorado', 'Eldorado'
+        GENERAL_MANUEL_BELGRANO = 'General Manuel Belgrano', 'General Manuel Belgrano'
+        GUARANI = 'Guaraní', 'Guaraní'
+        IGUAZU = 'Iguazú', 'Iguazú'
+        LEANDRO_N_ALEM = 'Leandro N. Alem', 'Leandro N. Alem'
+        LIBERTADOR_GENERAL_SAN_MARTIN = 'Libertador General San Martín', 'Libertador General San Martín'
+        MONTECARLO = 'Montecarlo', 'Montecarlo'
+        OBERA = 'Oberá', 'Oberá'
+        SAN_IGNACIO = 'San Ignacio', 'San Ignacio'
+        SAN_JAVIER = 'San Javier', 'San Javier'
+        SAN_PEDRO = 'San Pedro', 'San Pedro'
+        VEINTICINCO_DE_MAYO = '25 de Mayo', '25 de Mayo'
+
     id_ubicacion = models.AutoField(primary_key=True)
     nombre_lugar = models.CharField('lugar', max_length=200)
     zona = models.CharField('zona', max_length=100, blank=True)
+    departamento = models.CharField(                                         # <-- NUEVO
+        'departamento',
+        max_length=60,
+        choices=Departamento.choices,
+        blank=True,
+        default='',
+    )
     latitud = models.FloatField('latitud', validators=[MinValueValidator(-90), MaxValueValidator(90)])
     longitud = models.FloatField('longitud', validators=[MinValueValidator(-180), MaxValueValidator(180)])
     precision = models.CharField(
@@ -304,6 +338,7 @@ class Ubicacion(models.Model):
         ordering = ['nombre_lugar', 'id_ubicacion']
         indexes = [
             models.Index(fields=['zona'], name='ix_ubicacion_zona'),
+            models.Index(fields=['departamento'], name='ix_ubicacion_departamento'),   # <-- NUEVO
         ]
         constraints = [
             models.CheckConstraint(
@@ -327,6 +362,7 @@ class Ubicacion(models.Model):
         super().clean()
         self.nombre_lugar = _limpiar_espacios(self.nombre_lugar)
         self.zona = _limpiar_espacios(self.zona)
+        self.departamento = _limpiar_espacios(self.departamento)             # <-- NUEVO
 
 
 # =============================================================================
@@ -334,12 +370,19 @@ class Ubicacion(models.Model):
 # =============================================================================
 
 class Registro(models.Model):
-    # Tabla "registro": id_registro, id_noticia, id_especie, id_ubicacion,
-    #                   fecha_avistamiento, tipo_registro, estado_calidad,
-    #                   fragmento_origen, id_usuario_carga, id_usuario_validador,
-    #                   fecha_validacion
+    # Tabla "registro": id_registro, id_noticia, origen_registro, id_especie,
+    #                   id_ubicacion, fecha_avistamiento, tipo_registro,
+    #                   estado_calidad, fragmento_origen, observaciones,
+    #                   id_usuario_carga, id_usuario_validador, fecha_validacion
     #
     # En la interfaz se muestra como "Avistamiento" (verbose_name).
+    #
+    # Procedencia del registro:
+    #   - SCRAPING: siempre referencia una noticia y se respalda con
+    #     "fragmento_origen".
+    #   - MANUAL:   no requiere noticia; se respalda con "observaciones" y con el
+    #     usuario que lo cargó ("usuario_carga"). La noticia es opcional (enlace
+    #     de referencia).
 
     class EstadoCalidad(models.TextChoices):
         PENDIENTE = 'PENDIENTE', 'Pendiente'
@@ -347,15 +390,30 @@ class Registro(models.Model):
         CORREGIDO = 'CORREGIDO', 'Corregido'
         DESCARTADO = 'DESCARTADO', 'Descartado'
 
+    class OrigenRegistro(models.TextChoices):
+        SCRAPING = 'SCRAPING', 'Scraping'
+        MANUAL = 'MANUAL', 'Carga manual'
+
     id_registro = models.AutoField(primary_key=True)
 
-    # Obligatoria: todo registro (también los cargados a mano) apunta a una noticia.
+    # Obligatoria solo en registros de scraping (ver clean() y la restricción
+    # ck_registro_procedencia). En cargas manuales es un enlace de referencia
+    # opcional.
     noticia = models.ForeignKey(
         Noticia,
         on_delete=models.PROTECT,
         db_column='id_noticia',
         related_name='registros',
+        null=True,
+        blank=True,
         verbose_name='noticia',
+    )
+    # Distingue cómo ingresó el registro. Lo fija el servidor, no el formulario.
+    origen_registro = models.CharField(
+        'origen del registro',
+        max_length=20,
+        choices=OrigenRegistro.choices,
+        default=OrigenRegistro.SCRAPING,
     )
     # Nulo hasta que se resuelva la especie (la noticia puede mencionar una que no
     # está en el catálogo).
@@ -379,7 +437,7 @@ class Registro(models.Model):
         verbose_name='ubicación',
     )
 
-    # Nula si la noticia no precisa la fecha.
+    # Nula si la noticia (o quien carga) no precisa la fecha.
     fecha_avistamiento = models.DateField('fecha de avistamiento', null=True, blank=True)
     tipo_registro = models.CharField(
         'tipo de registro',
@@ -393,10 +451,16 @@ class Registro(models.Model):
         choices=EstadoCalidad.choices,
         default=EstadoCalidad.PENDIENTE,
     )
-    # Fragmento de la noticia que respalda el registro (procedencia verificable).
+    # Fragmento de la noticia que respalda el registro (procedencia en scraping).
     fragmento_origen = models.TextField('fragmento de origen', blank=True)
+    # Respaldo de las cargas manuales: quién lo vio, cómo se supo, circunstancias.
+    observaciones = models.TextField(
+        'observaciones',
+        blank=True,
+        help_text='En cargas manuales: quién lo observó, cómo se tuvo conocimiento, circunstancias.',
+    )
 
-    # Nulo si el registro viene del scraping.
+    # Nulo si el registro viene del scraping; obligatorio en cargas manuales.
     usuario_carga = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -428,11 +492,27 @@ class Registro(models.Model):
         indexes = [
             models.Index(fields=['fecha_avistamiento'], name='ix_registro_fecha'),
             models.Index(fields=['estado_calidad'], name='ix_registro_calidad'),
+            models.Index(fields=['origen_registro'], name='ix_registro_origen'),
         ]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(estado_calidad__in=['PENDIENTE', 'VALIDADO', 'CORREGIDO', 'DESCARTADO']),
                 name='ck_registro_estado',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(origen_registro__in=['SCRAPING', 'MANUAL']),
+                name='ck_registro_origen',
+            ),
+            # Ningún registro puede quedar sin procedencia:
+            #   scraping -> exige noticia; manual -> exige usuario que lo cargó.
+            # (La obligatoriedad de "observaciones" en cargas manuales se valida en
+            # clean(), porque es un campo de texto largo.)
+            models.CheckConstraint(
+                condition=(
+                    models.Q(origen_registro='SCRAPING', noticia__isnull=False)
+                    | models.Q(origen_registro='MANUAL', usuario_carga__isnull=False)
+                ),
+                name='ck_registro_procedencia',
             ),
         ]
 
@@ -446,14 +526,21 @@ class Registro(models.Model):
     # (r.zona, r.latitud, r.longitud, r.fuente y el link a la noticia).
     # Para filtrar/ordenar en consultas hay que usar la ruta real:
     # ubicacion__zona, noticia__fuente, etc.
+    # Ojo: en cargas manuales la noticia puede ser nula, por eso estos accesos
+    # devuelven None si no hay noticia. En las plantillas hay que preguntar
+    # {% if r.noticia %} antes de mostrar el enlace.
+
+    @property
+    def es_manual(self):
+        return self.origen_registro == self.OrigenRegistro.MANUAL
 
     @property
     def url_noticia(self):
-        return self.noticia.url
+        return self.noticia.url if self.noticia_id else None
 
     @property
     def fuente(self):
-        return self.noticia.fuente
+        return self.noticia.fuente if self.noticia_id else None
 
     @property
     def zona(self):
@@ -480,6 +567,17 @@ class Registro(models.Model):
             and not self.especie_id
         ):
             errores['especie'] = 'Un registro validado o corregido debe tener una especie asignada.'
+
+        # Procedencia: scraping exige noticia; carga manual exige observaciones.
+        # (usuario_carga no se valida acá: la vista lo asigna después del
+        # form.is_valid(); lo garantiza ck_registro_procedencia en la base.)
+        if self.origen_registro == self.OrigenRegistro.MANUAL:
+            if not (self.observaciones or '').strip():
+                errores['observaciones'] = (
+                    'Una carga manual debe incluir observaciones que respalden el avistamiento.'
+                )
+        elif not self.noticia_id:
+            errores['noticia'] = 'Un registro de scraping debe estar asociado a una noticia.'
 
         self.tipo_registro = _limpiar_espacios(self.tipo_registro)
 

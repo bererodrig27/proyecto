@@ -17,6 +17,18 @@ def en_misiones(lat: float, lon: float) -> bool:
     return lat_min <= lat <= lat_max and lon_min <= lon <= lon_max
 
 
+_DEPTOS_NORM = {normalizar_texto(d): d for d in config.DEPARTAMENTOS}
+_DEPTOS_NORM["veinticinco de mayo"] = "25 de Mayo"
+
+
+def normalizar_departamento(valor) -> str:
+    """'Departamento Oberá', 'oberá' -> 'Oberá' (nombre canónico de config.DEPARTAMENTOS).
+    Devuelve '' si no corresponde a ninguno de los 17 departamentos de Misiones."""
+    v = normalizar_texto(valor if isinstance(valor, str) else "")
+    v = re.sub(r"^departamento\s+(de\s+)?", "", v)
+    return _DEPTOS_NORM.get(v, "")
+
+
 def parsear_fecha(texto):
     """'2024-05-03' o ISO completo -> date. None si no se puede."""
     if not texto or not isinstance(texto, str):
@@ -36,18 +48,22 @@ def parsear_fecha(texto):
 
 
 def resolver_fecha(fecha_ia, fecha_pub):
-    """Fecha del avistamiento y su origen: ('ia' | 'publicacion', fecha) o (None, None).
+    """Fecha del avistamiento y su origen: ('ia' | 'publicacion' | 'hoy', fecha) o (None, None).
 
-    Usa la de la IA si es válida; si no, depende de FECHA_SI_FALTA (ver config.py).
+    Usa la de la IA si es válida (no futura). Si no, depende de config.FECHA_SI_FALTA:
+    la de publicación de la nota y/o la de hoy (ver config.py).
     """
     hoy = date.today()
     f = parsear_fecha(fecha_ia)
     if f and date(1900, 1, 1) <= f <= hoy:
         return f, "ia"
-    if config.FECHA_SI_FALTA == "publicacion":
+    modo = config.FECHA_SI_FALTA
+    if modo in ("publicacion", "publicacion_o_hoy"):
         p = parsear_fecha(fecha_pub)
         if p:
             return min(p, hoy), "publicacion"
+    if modo in ("hoy", "publicacion_o_hoy"):
+        return hoy, "hoy"
     return None, None
 
 
