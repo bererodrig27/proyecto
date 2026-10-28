@@ -1,0 +1,28 @@
+{% extends "MisionaBio/base.html" %}
+
+{% block title %}Eliminar avistamiento{% endblock %}
+
+{% block content %}
+
+  <div class="page-header">
+    <div>
+      <h1>Eliminar avistamiento</h1>
+    </div>
+  </div>
+
+  <section class="card confirm-card">
+    <p class="confirm-card__lead">
+      ¿Seguro que querés eliminar el avistamiento de
+      {% if registro.especie %}<strong><em>{{ registro.especie.nombre_cientifico }}</em></strong>{% else %}una especie sin identificar{% endif %}
+      del {{ registro.fecha_avistamiento|date:"d/m/Y" }}{% if registro.zona %} en {{ registro.zona }}{% endif %}?
+    </p>
+    <p class="confirm-card__note">Esta acción no se puede deshacer.</p>
+
+    <form method="post" class="form-actions">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--danger">Sí, eliminar</button>
+      <a href="{% url 'avistamientos:detalle' registro.pk %}" class="btn btn--outline">Cancelar</a>
+    </form>
+  </section>
+
+{% endblock %}

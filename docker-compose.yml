@@ -10,18 +10,26 @@ services:
       - "1521:1521"
     volumes:
       - oracle-data:/opt/oracle/oradata
-
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
 
   web:
     build: .
     container_name: django-app
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     volumes:
       - .:/app
     ports:
       - "8000:8000"
     depends_on:
-      - oracle
-
+      oracle:
+        condition: service_healthy
 
 volumes:
   oracle-data:
+  

@@ -1,0 +1,62 @@
+{% extends "MisionaBio/base.html" %}
+
+{% block title %}{{ especie.nombre_cientifico }}{% endblock %}
+
+{% block content %}
+
+  <a href="{% url 'especies:lista' %}" class="back-link">‹ Volver a especies</a>
+
+  <div class="page-header page-header--detail">
+    <div>
+      <h1 class="title-sci">{{ especie.nombre_cientifico }}</h1>
+      <p>{{ especie.nombre_comun|default:"Sin nombre común registrado" }}</p>
+    </div>
+    {% if user.es_administrador %}
+      <div class="page-header__actions">
+        <a href="{% url 'especies:editar' especie.pk %}" class="btn btn--outline">Editar</a>
+        <a href="{% url 'especies:eliminar' especie.pk %}" class="btn btn--danger">Eliminar</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="detail-grid">
+
+    <section class="card" aria-labelledby="ficha-titulo">
+      <h2 class="card__title" id="ficha-titulo">Ficha de la especie</h2>
+      <dl class="ficha">
+        <dt>Clase taxonómica</dt>
+        <dd>{{ especie.clase_taxonomica|default:"—" }}</dd>
+
+        <dt>Taxonomía</dt>
+        <dd>{{ especie.taxonomia|default:"—" }}</dd>
+
+        <dt>Estado de conservación</dt>
+        <dd><span class="badge badge--{{ especie.estado_conservacion|lower }}">{{ especie.get_estado_conservacion_display }}</span></dd>
+      </dl>
+    </section>
+
+    <section class="card" aria-labelledby="avist-titulo">
+      <h2 class="card__title" id="avist-titulo">Avistamientos ({{ total_registros }})</h2>
+
+      {% if registros %}
+        <ul class="avist-list">
+          {% for r in registros %}
+            <li>
+              <a href="{% url 'avistamientos:detalle' r.pk %}">{{ r.fecha_avistamiento|date:"d/m/Y" }}</a>
+              <span class="avist-list__meta">· {% if r.zona %}{{ r.zona }} · {% endif %}{{ r.fuente }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Esta especie todavía no tiene avistamientos.</p>
+      {% endif %}
+
+            <p class="card__links">
+        {% if total_registros > 10 %}<a href="{% url 'avistamientos:lista' %}?q={{ especie.nombre_cientifico|urlencode }}">Ver los {{ total_registros }}</a>{% endif %}
+        <a href="{% url 'avistamientos:crear' %}?especie={{ especie.pk }}">Registrar avistamiento</a>
+      </p>
+    </section>
+
+  </div>
+
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "MisionaBio/base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+
+  <div class="page-header">
+    <div>
+      <h1>{{ titulo }}</h1>
+
+      {% if es_admin %}
+        <p>
+          Los campos con * son obligatorios. Si el estado es «Validado» o
+          «Corregido», quedás registrado como curador.
+        </p>
+      {% else %}
+        <p>
+          Los campos con * son obligatorios. Tu avistamiento quedará como
+          «Pendiente» hasta que un administrador lo valide.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="post"
+        enctype="multipart/form-data"
+        class="card form-card"
+        novalidate>
+
+    {% csrf_token %}
+
+    {% include "MisionaBio/_campos_form.html" %}
+
+    <section class="image-upload-section" aria-labelledby="imagenes-titulo">
+
+      <div class="image-upload-section__header">
+        <div>
+          <h2 class="card__title" id="imagenes-titulo">Imágenes del avistamiento</h2>
+          <p class="field-help">
+            Podés cargar hasta 10 imágenes. Se aceptan archivos JPG, JPEG, PNG o WEBP
+            de hasta 8 MB cada uno.
+          </p>
+        </div>
+      </div>
+
+      {{ formset.management_form }}
+
+      {% if formset.non_form_errors %}
+        <div class="message message--error" role="alert">
+          {% for error in formset.non_form_errors %}
+            {{ error }}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="image-upload-list">
+
+        {% for imagen_form in formset %}
+          <div class="image-upload-item">
+
+            {% for hidden in imagen_form.hidden_fields %}
+              {{ hidden }}
+            {% endfor %}
+
+            {% if imagen_form.instance.pk and imagen_form.instance.archivo %}
+              <div class="image-upload-item__preview">
+                <img
+                  src="{{ imagen_form.instance.archivo.url }}"
+                  alt="Imagen del avistamiento"
+                  class="image-preview"
+                >
+              </div>
+            {% endif %}
+
+            <div class="image-upload-item__fields">
+
+              <div class="field{% if imagen_form.archivo.errors %} field--invalid{% endif %}">
+                <label for="{{ imagen_form.archivo.id_for_label }}">
+                  {% if imagen_form.instance.pk %}
+                    Reemplazar imagen
+                  {% else %}
+                    Imagen
+                  {% endif %}
+                </label>
+
+                {{ imagen_form.archivo }}
+
+                {% if imagen_form.archivo.help_text %}
+                  <p class="field-help">{{ imagen_form.archivo.help_text }}</p>
+                {% endif %}
+
+                {% for error in imagen_form.archivo.errors %}
+                  <p class="field-error">{{ error }}</p>
+                {% endfor %}
+              </div>
+
+              <div class="field{% if imagen_form.descripcion.errors %} field--invalid{% endif %}">
+                <label for="{{ imagen_form.descripcion.id_for_label }}">
+                  Descripción
+                </label>
+
+                {{ imagen_form.descripcion }}
+
+                {% for error in imagen_form.descripcion.errors %}
+                  <p class="field-error">{{ error }}</p>
+                {% endfor %}
+              </div>
+
+              {% if imagen_form.instance.pk %}
+                <div class="image-delete">
+                  <label for="{{ imagen_form.DELETE.id_for_label }}">
+                    {{ imagen_form.DELETE }}
+                    Eliminar esta imagen
+                  </label>
+
+                  {% for error in imagen_form.DELETE.errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+            </div>
+
+          </div>
+        {% endfor %}
+
+      </div>
+
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">{{ boton }}</button>
+
+      <a
+        href="{% if registro %}{% url 'avistamientos:detalle' registro.pk %}{% else %}{% url 'avistamientos:lista' %}{% endif %}"
+        class="btn btn--outline">
+        Cancelar
+      </a>
+    </div>
+
+  </form>
+
+{% endblock %}

@@ -4,340 +4,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ingresar · MisionaBio</title>
+<title>Iniciar sesión · MisionaBio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --forest-deep:#12261D;
-    --forest-mid:#254B3A;
-    --canopy:#4C7A5B;
-    --parchment:#F4EFE3;
-    --parchment-dim:#EAE2CF;
-    --ink:#1B241D;
-    --ink-soft:#5B6B5E;
-    --gold:#C79A3E;
-    --gold-dim:#9C7A2E;
-    --error:#A6432B;
-    --error-bg:#F6E4DD;
-  }
-
-  *{ box-sizing:border-box; }
-
-  html,body{
-    margin:0;
-    padding:0;
-    min-height:100vh;
-    font-family:'Inter', sans-serif;
-    color:var(--ink);
-    background:var(--forest-deep);
-  }
-
-  a{ color:inherit; }
-
-  .layout{
-    min-height:100vh;
-    display:grid;
-    grid-template-columns: 1.05fr 1fr;
-  }
-
-  /* ---------- Left: brand / field-notebook panel ---------- */
-
-  .brand-panel{
-    position:relative;
-    background:
-      radial-gradient(1200px 800px at 12% 8%, rgba(255,255,255,0.05), transparent 55%),
-      linear-gradient(165deg, var(--forest-mid) 0%, var(--forest-deep) 62%);
-    color:var(--parchment);
-    padding: 4.5rem 4rem;
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-    overflow:hidden;
-  }
-
-  .leaf-veins{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    opacity:0.16;
-    pointer-events:none;
-  }
-
-  .brand-mark{
-    position:relative;
-    z-index:1;
-    display:flex;
-    align-items:center;
-    gap:0.65rem;
-  }
-
-  .brand-mark svg{
-    width:30px;
-    height:30px;
-    flex-shrink:0;
-  }
-
-  .brand-mark span{
-    font-family:'Fraunces', serif;
-    font-weight:500;
-    font-size:1.15rem;
-    letter-spacing:0.01em;
-  }
-
-  .brand-copy{
-    position:relative;
-    z-index:1;
-    max-width: 30rem;
-  }
-
-  .brand-copy h1{
-    font-family:'Fraunces', serif;
-    font-weight:500;
-    font-size: clamp(2.1rem, 3.4vw, 2.85rem);
-    line-height:1.16;
-    margin:0 0 1.1rem 0;
-  }
-
-  .brand-copy p{
-    font-size:1.02rem;
-    line-height:1.65;
-    color:#D8E2D5;
-    margin:0;
-  }
-
-  .field-record{
-    position:relative;
-    z-index:1;
-    border-top:1px solid rgba(244,239,227,0.22);
-    padding-top:1.6rem;
-    display:grid;
-    grid-template-columns: repeat(3, auto);
-    gap:2.4rem;
-  }
-
-  .field-record dt{
-    font-size:0.72rem;
-    color:#9FB4A5;
-    margin:0 0 0.3rem 0;
-  }
-
-  .field-record dd{
-    font-family:'Fraunces', serif;
-    font-size:1.02rem;
-    margin:0;
-    color:var(--parchment);
-  }
-
-  /* ---------- Right: form panel ---------- */
-
-  .form-panel{
-    background:var(--parchment);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding: 3rem 2.5rem;
-  }
-
-  .form-wrap{
-    width:100%;
-    max-width:23rem;
-  }
-
-  .form-wrap h2{
-    font-family:'Fraunces', serif;
-    font-weight:500;
-    font-size:1.7rem;
-    margin:0 0 0.4rem 0;
-    color:var(--ink);
-  }
-
-  .form-wrap .sub{
-    color:var(--ink-soft);
-    font-size:0.92rem;
-    margin:0 0 2rem 0;
-    line-height:1.5;
-  }
-
-  .alert{
-    background:var(--error-bg);
-    border:1px solid rgba(166,67,43,0.28);
-    color:var(--error);
-    font-size:0.87rem;
-    line-height:1.5;
-    padding:0.75rem 0.9rem;
-    border-radius:5px;
-    margin-bottom:1.4rem;
-  }
-
-  form{
-    display:flex;
-    flex-direction:column;
-    gap:1.15rem;
-  }
-
-  .field label{
-    display:block;
-    font-size:0.82rem;
-    font-weight:600;
-    color:var(--ink);
-    margin-bottom:0.4rem;
-  }
-
-  .field input{
-    width:100%;
-    font-family:'Inter', sans-serif;
-    font-size:0.97rem;
-    padding:0.72rem 0.85rem;
-    border-radius:5px;
-    border:1px solid #C9BFA4;
-    background:#FFFDF8;
-    color:var(--ink);
-    outline:none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .field input::placeholder{
-    color:#A79E86;
-  }
-
-  .field input:focus{
-    border-color:var(--gold);
-    box-shadow: 0 0 0 3px rgba(199,154,62,0.22);
-  }
-
-  .field-error{
-    color:var(--error);
-    font-size:0.78rem;
-    margin-top:0.35rem;
-  }
-
-  .row-between{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    font-size:0.85rem;
-    color:var(--ink-soft);
-  }
-
-  .checkbox-row{
-    display:flex;
-    align-items:center;
-    gap:0.5rem;
-  }
-
-  .checkbox-row input{
-    accent-color:var(--gold-dim);
-    width:15px;
-    height:15px;
-  }
-
-  .row-between a{
-    color:var(--gold-dim);
-    text-decoration:none;
-    font-weight:600;
-  }
-
-  .row-between a:hover{
-    text-decoration:underline;
-  }
-
-  button.submit{
-    margin-top:0.4rem;
-    width:100%;
-    background:var(--forest-deep);
-    color:var(--parchment);
-    border:none;
-    border-radius:5px;
-    padding:0.82rem 1rem;
-    font-family:'Inter', sans-serif;
-    font-size:0.97rem;
-    font-weight:600;
-    cursor:pointer;
-    transition: background 0.15s ease;
-  }
-
-  button.submit:hover{
-    background:var(--canopy);
-  }
-
-  button.submit:focus-visible{
-    outline:2px solid var(--gold);
-    outline-offset:2px;
-  }
-
-  .divider-line{
-    display:flex;
-    align-items:center;
-    gap:0.8rem;
-    color:#A79E86;
-    font-size:0.78rem;
-    margin:1.6rem 0 1.3rem 0;
-  }
-
-  .divider-line::before,
-  .divider-line::after{
-    content:"";
-    flex:1;
-    height:1px;
-    background:#D8CFB4;
-  }
-
-  .guest-link{
-    display:block;
-    text-align:center;
-    text-decoration:none;
-    font-size:0.9rem;
-    font-weight:600;
-    color:var(--forest-mid);
-    border:1px solid #C9BFA4;
-    border-radius:5px;
-    padding:0.68rem 1rem;
-    transition: border-color 0.15s ease, background 0.15s ease;
-  }
-
-  .guest-link:hover{
-    background:#FFFDF8;
-    border-color:var(--canopy);
-  }
-
-  .footnote{
-    margin-top:2rem;
-    font-size:0.8rem;
-    color:var(--ink-soft);
-    line-height:1.6;
-  }
-
-  @media (max-width: 860px){
-    .layout{ grid-template-columns: 1fr; }
-    .brand-panel{
-      padding: 2.6rem 1.8rem;
-      min-height:15rem;
-    }
-    .field-record{ display:none; }
-    .form-panel{ padding: 2.6rem 1.6rem; }
-  }
-</style>
+<link rel="stylesheet" href="{% static 'MisionaBio/css/auth.css' %}">
 </head>
 <body>
 
 <div class="layout">
 
-  <!-- Panel izquierdo: identidad del proyecto -->
   <aside class="brand-panel">
 
     <svg class="leaf-veins" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
       <path d="M -50 650 C 100 600, 180 500, 160 380 C 145 290, 60 250, -50 260" stroke="#F4EFE3" stroke-width="1.4" fill="none"/>
       <path d="M -50 650 C 40 610, 80 560, 90 500" stroke="#F4EFE3" stroke-width="0.9" fill="none"/>
-      <path d="M -50 650 C 60 640, 120 600, 140 540" stroke="#F4EFE3" stroke-width="0.9" fill="none"/>
-      <path d="M 160 380 C 200 350, 220 300, 200 250" stroke="#F4EFE3" stroke-width="0.9" fill="none"/>
       <path d="M 500 60 C 420 140, 400 240, 460 320 C 505 380, 590 390, 650 360" stroke="#F4EFE3" stroke-width="1.4" fill="none"/>
-      <path d="M 500 60 C 460 120, 450 170, 480 220" stroke="#F4EFE3" stroke-width="0.9" fill="none"/>
       <path d="M 460 320 C 500 330, 540 320, 560 290" stroke="#F4EFE3" stroke-width="0.9" fill="none"/>
       <circle cx="480" cy="620" r="2.2" fill="#F4EFE3"/>
-      <circle cx="520" cy="660" r="1.6" fill="#F4EFE3"/>
       <circle cx="90" cy="160" r="2" fill="#F4EFE3"/>
     </svg>
 
@@ -350,44 +34,35 @@
     </div>
 
     <div class="brand-copy">
-      <h1>Registro de biodiversidad de Misiones, a partir de datos abiertos y verificables.</h1>
-      <p>Consultá, filtrá y clasificá avistamientos de especies nativas recolectados de fuentes oficiales como GBIF, el SIB de Parques Nacionales e iNaturalist, con apoyo de un modelo de IA para sugerir especies inciertas.</p>
+      <h1>Registro de biodiversidad de Misiones.</h1>
+      <p>Ingresá para consultar especies y avistamientos, filtrar por zona o clase taxonómica y acceder a las fichas completas.</p>
     </div>
 
-    <dl class="field-record">
-      <div>
-        <dt>Fuente primaria</dt>
-        <dd>GBIF</dd>
-      </div>
-      <div>
-        <dt>Cobertura</dt>
-        <dd>Misiones, AR</dd>
-      </div>
-      <div>
-        <dt>Clasificación</dt>
-        <dd>Asistida por IA</dd>
-      </div>
-    </dl>
+    <div class="role-note">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="9" stroke="#C79A3E" stroke-width="1.3"/>
+        <path d="M12 8v5" stroke="#C79A3E" stroke-width="1.3" stroke-linecap="round"/>
+        <circle cx="12" cy="16" r="0.9" fill="#C79A3E"/>
+      </svg>
+      <p>Si todavía no tenés cuenta, podés crear una: se registra con rol Visitante (solo consulta). Los permisos de carga y validación los asigna un administrador.</p>
+    </div>
 
   </aside>
 
-  <!-- Panel derecho: formulario -->
   <main class="form-panel">
     <div class="form-wrap">
-
       <h2>Iniciar sesión</h2>
-      <p class="sub">Ingresá con tu usuario para acceder a la carga y validación de registros.</p>
+      <p class="sub">Ingresá con tu usuario y contraseña.</p>
 
       {% if form.non_field_errors %}
         <div class="alert">
-          {% for error in form.non_field_errors %}
-            {{ error }}
-          {% endfor %}
+          {% for error in form.non_field_errors %}{{ error }} {% endfor %}
         </div>
       {% endif %}
 
-      <form method="post" action="{% url 'login' %}" novalidate>
+      <form method="post" novalidate>
         {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
 
         <div class="field">
           <label for="id_username">Usuario</label>
@@ -401,9 +76,7 @@
             required
             autofocus
           >
-          {% if form.username.errors %}
-            <div class="field-error">{{ form.username.errors.0 }}</div>
-          {% endif %}
+          {% if form.username.errors %}<div class="field-error">{{ form.username.errors.0 }}</div>{% endif %}
         </div>
 
         <div class="field">
@@ -416,30 +89,13 @@
             autocomplete="current-password"
             required
           >
-          {% if form.password.errors %}
-            <div class="field-error">{{ form.password.errors.0 }}</div>
-          {% endif %}
-        </div>
-
-        <div class="row-between">
-          <label class="checkbox-row">
-            <input type="checkbox" name="remember">
-            Recordarme
-          </label>
-          <a href="#">¿Olvidaste tu contraseña?</a>
+          {% if form.password.errors %}<div class="field-error">{{ form.password.errors.0 }}</div>{% endif %}
         </div>
 
         <button type="submit" class="submit">Ingresar</button>
       </form>
 
-      <div class="divider-line">o</div>
-
-      <a href="{% url 'index' %}" class="guest-link">Explorar registros sin iniciar sesión</a>
-
-      <p class="footnote">
-        El acceso se otorga por un administrador del sistema. Si necesitás una cuenta para cargar o validar registros, contactá al equipo de MisionaBio.
-      </p>
-
+      <a href="{% url 'registro' %}" class="back-link">¿No tenés cuenta? — crear una</a>
     </div>
   </main>
 

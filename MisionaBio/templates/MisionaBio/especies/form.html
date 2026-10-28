@@ -1,0 +1,34 @@
+{% extends "MisionaBio/base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+
+  <div class="page-header">
+    <div>
+      <h1>{{ titulo }}</h1>
+      <p>{% if especie %}Modificá los datos de <em>{{ especie.nombre_cientifico }}</em>.{% else %}Completá los datos de la especie. Los campos con * son obligatorios.{% endif %}</p>
+    </div>
+  </div>
+
+  <form method="post" class="card form-card" novalidate>
+    {% csrf_token %}
+    {% include "MisionaBio/_campos_form.html" %}
+
+    <datalist id="clases-sugeridas">
+      <option value="Aves"></option>
+      <option value="Mammalia"></option>
+      <option value="Reptilia"></option>
+      <option value="Amphibia"></option>
+      <option value="Actinopterygii"></option>
+      <option value="Insecta"></option>
+      <option value="Arachnida"></option>
+    </datalist>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">{{ boton }}</button>
+      <a href="{% if especie %}{% url 'especies:detalle' especie.pk %}{% else %}{% url 'especies:lista' %}{% endif %}" class="btn btn--outline">Cancelar</a>
+    </div>
+  </form>
+
+{% endblock %}
