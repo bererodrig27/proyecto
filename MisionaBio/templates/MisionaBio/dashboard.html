@@ -4,135 +4,7 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block extra_head %}
-<style>
-  .dash {
-    --d-ink:#1b2a22; --d-soft:#55645b; --d-muted:#7d887f;
-    --d-card:#fffefa; --d-line:#e6e0d0; --d-wash:#f6f2e7;
-    --d-g950:#0f221a; --d-g900:#12271e; --d-g700:#1f5a43; --d-g600:#2f6f54; --d-g100:#dcebe2;
-    --d-gold:#c79a3e; --d-gold-ink:#7a5a14;
-    --d-serif:"Fraunces", Georgia, "Times New Roman", serif;
-    --d-sans:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --d-r:16px;
-    color:var(--d-ink); font-family:var(--d-sans);
-    padding-bottom:2rem;
-  }
-  .dash [hidden] { display:none !important; }
-
-  /* ---------- Encabezado y pestañas ---------- */
-  .dash .d-head { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:1rem 1.5rem; margin:.4rem 0 1.4rem; }
-  .dash .d-eyebrow { margin:0 0 .35rem; font-size:.74rem; letter-spacing:.14em; text-transform:uppercase; font-weight:600; color:var(--d-gold-ink); }
-  .dash .d-title { margin:0; font:600 clamp(2rem,4.5vw,2.9rem)/1.05 var(--d-serif); letter-spacing:-.015em; color:var(--d-ink); }
-  .dash .d-sub { display:flex; align-items:center; gap:.55rem; margin:.65rem 0 0; font-size:.92rem; color:var(--d-soft); }
-  .dash .d-live { flex:none; width:9px; height:9px; border-radius:50%; background:#2fa36b; animation:d-pulse 2s infinite; }
-  @keyframes d-pulse { 0% { box-shadow:0 0 0 0 rgba(47,163,107,.55); } 70% { box-shadow:0 0 0 9px rgba(47,163,107,0); } 100% { box-shadow:0 0 0 0 rgba(47,163,107,0); } }
-
-  .dash .d-tabs { display:inline-flex; gap:.25rem; padding:.3rem; background:var(--d-wash); border:1px solid var(--d-line); border-radius:999px; }
-  .dash .d-tab { display:inline-flex; align-items:center; gap:.5rem; border:0; background:transparent; color:var(--d-soft); font:600 .92rem var(--d-sans); padding:.62rem 1.2rem; border-radius:999px; cursor:pointer; transition:background .2s, color .2s, box-shadow .2s; }
-  .dash .d-tab svg { width:18px; height:18px; }
-  .dash .d-tab:hover { color:var(--d-ink); }
-  .dash .d-tab[aria-selected="true"] { background:var(--d-g900); color:#fbf6e8; box-shadow:0 4px 14px rgba(18,39,30,.28); }
-  .dash .d-tab:focus-visible, .dash .d-seg button:focus-visible, .dash .d-lista button:focus-visible, .dash .d-field select:focus-visible { outline:2px solid var(--d-gold); outline-offset:2px; }
-
-  /* ---------- Tarjetas de números ---------- */
-  .dash .d-kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(215px, 1fr)); gap:1rem; margin-bottom:1rem; }
-  .dash .d-kpi { position:relative; overflow:hidden; background:var(--d-card); border:1px solid var(--d-line); border-radius:var(--d-r); padding:1.15rem 1.25rem 1.1rem; transition:transform .25s, box-shadow .25s; animation:d-rise .6s both; animation-delay:calc(var(--i, 0) * 70ms); }
-  .dash .d-kpi:hover { transform:translateY(-3px); box-shadow:0 14px 30px -14px rgba(18,39,30,.28); }
-  .dash .d-kpi__top { display:flex; align-items:center; gap:.6rem; margin-bottom:.85rem; }
-  .dash .d-kpi__icon { flex:none; display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:var(--d-g100); color:var(--d-g700); }
-  .dash .d-kpi__icon svg { width:18px; height:18px; }
-  .dash .d-kpi__label { font-size:.76rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--d-soft); }
-  .dash .d-kpi__value { font:600 clamp(2.5rem,5vw,3.3rem)/1 var(--d-serif); letter-spacing:-.02em; font-variant-numeric:lining-nums tabular-nums; }
-  .dash .d-kpi__sub { margin:.65rem 0 0; font-size:.86rem; color:var(--d-soft); }
-  .dash .d-kpi__sub strong { color:var(--d-ink); font-weight:600; }
-  .dash .d-kpi--feature { background:linear-gradient(155deg, var(--d-g900), var(--d-g950)); border-color:var(--d-g900); color:#fbf6e8; }
-  .dash .d-kpi--feature .d-kpi__icon { background:rgba(199,154,62,.18); color:#e3bf72; }
-  .dash .d-kpi--feature .d-kpi__label, .dash .d-kpi--feature .d-kpi__sub { color:#c9d6cd; }
-  .dash .d-kpi--feature .d-kpi__sub strong { color:#fbf6e8; }
-  .dash .d-kpi--feature .d-kpi__value { color:#f0c978; }
-  .dash .d-kpi__mark { position:absolute; right:-14px; bottom:-18px; width:110px; height:110px; color:#fff; opacity:.06; pointer-events:none; }
-  .dash .d-kpi__dot { display:inline-block; width:8px; height:8px; margin-left:.15rem; border-radius:50%; background:#2fa36b; animation:d-pulse 2s infinite; vertical-align:middle; }
-  .dash .d-kpi.is-updated { animation:d-flash 1.4s ease; }
-  @keyframes d-flash { 0% { box-shadow:0 0 0 0 rgba(199,154,62,.65); } 70% { box-shadow:0 0 0 12px rgba(199,154,62,0); } 100% { box-shadow:0 0 0 0 rgba(199,154,62,0); } }
-  @keyframes d-rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-
-  /* ---------- Paneles y grilla ---------- */
-  .dash .d-grid { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:1rem; }
-  .dash .d-span-4 { grid-column:span 4; }
-  .dash .d-span-6 { grid-column:span 6; }
-  .dash .d-span-8 { grid-column:span 8; }
-  .dash .d-span-12 { grid-column:span 12; }
-  @media (max-width:960px) { .dash .d-span-4, .dash .d-span-6, .dash .d-span-8 { grid-column:span 12; } }
-
-  .dash .d-panel { min-width:0; background:var(--d-card); border:1px solid var(--d-line); border-radius:var(--d-r); padding:1.15rem 1.25rem 1.25rem; }
-  .dash .d-panel__head { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:.6rem 1rem; margin-bottom:.6rem; }
-  .dash .d-panel h2 { margin:0; font:600 1.12rem/1.25 var(--d-serif); letter-spacing:-.005em; color:var(--d-ink); }
-  .dash .d-hint { margin:.2rem 0 0; font-size:.82rem; color:var(--d-muted); }
-  .dash .d-link { font-size:.85rem; font-weight:600; color:var(--d-g700); text-decoration:none; }
-  .dash .d-link:hover { text-decoration:underline; }
-
-  .dash .d-chart { width:100%; height:280px; }
-  .dash .d-chart > .d-empty { height:100%; display:grid; place-items:center; }
-  .dash .d-empty { padding:2rem 1rem; text-align:center; color:var(--d-muted); font-size:.92rem; }
-
-  .dash .d-seg { display:inline-flex; padding:2px; border:1px solid var(--d-line); border-radius:999px; background:var(--d-wash); }
-  .dash .d-seg button { border:0; background:transparent; font:600 .8rem var(--d-sans); color:var(--d-soft); padding:.38rem .85rem; border-radius:999px; cursor:pointer; }
-  .dash .d-seg button[aria-pressed="true"] { background:var(--d-card); color:var(--d-ink); box-shadow:0 1px 3px rgba(18,39,30,.18); }
-
-  .dash .d-donut { position:relative; height:210px; }
-  .dash .d-donut .d-chart { height:100%; }
-  .dash .d-donut__center { position:absolute; inset:0; display:grid; place-content:center; text-align:center; pointer-events:none; }
-  .dash .d-donut__center strong { font:600 2rem/1 var(--d-serif); }
-  .dash .d-donut__center span { margin-top:.25rem; font-size:.78rem; color:var(--d-soft); }
-  .dash .d-legend { list-style:none; margin:.9rem 0 0; padding:0; display:grid; gap:.5rem; }
-  .dash .d-legend li { display:grid; grid-template-columns:auto 1fr auto auto; align-items:center; gap:.6rem; font-size:.9rem; }
-  .dash .d-legend__chip { width:12px; height:12px; border-radius:4px; }
-  .dash .d-legend__n { font-weight:600; }
-  .dash .d-legend__pct { min-width:3.2ch; text-align:right; font-size:.82rem; color:var(--d-muted); }
-
-  /* ---------- Tabla de últimos registros ---------- */
-  .dash .d-table-wrap { overflow-x:auto; margin:0 -.25rem; }
-  .dash .d-table { width:100%; min-width:640px; border-collapse:collapse; font-size:.92rem; }
-  .dash .d-table th { text-align:left; padding:.55rem .75rem; font-size:.74rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--d-muted); border-bottom:1px solid var(--d-line); }
-  .dash .d-table td { padding:.8rem .75rem; vertical-align:middle; border-bottom:1px solid var(--d-line); }
-  .dash .d-table tbody tr:last-child td { border-bottom:0; }
-  .dash .d-table tbody tr:hover { background:var(--d-wash); }
-  .dash .d-sp a { font-weight:600; color:var(--d-ink); text-decoration:none; }
-  .dash .d-sp a:hover { text-decoration:underline; }
-  .dash .d-sp small { display:block; font-size:.8rem; font-style:italic; color:var(--d-muted); }
-  .dash .d-badge { display:inline-block; padding:.2rem .6rem; border-radius:999px; font-size:.74rem; font-weight:600; white-space:nowrap; }
-  .dash .d-badge--PENDIENTE { background:#fdf0cf; color:#6b4d00; }
-  .dash .d-badge--VALIDADO { background:#d9efd9; color:#0b550b; }
-  .dash .d-badge--CORREGIDO { background:#dce9fa; color:#14468a; }
-
-  /* ---------- Mapa ---------- */
-  .dash .d-mapa { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:1rem; }
-  @media (max-width:1000px) { .dash .d-mapa { grid-template-columns:1fr; } }
-  .dash .d-mapa__bar { display:flex; flex-wrap:wrap; align-items:center; gap:.7rem 1rem; margin-bottom:.85rem; }
-  .dash .d-field { display:inline-flex; align-items:center; gap:.5rem; font-size:.82rem; font-weight:600; color:var(--d-soft); }
-  .dash .d-field select { max-width:220px; padding:.42rem 2rem .42rem .7rem; font:500 .88rem var(--d-sans); color:var(--d-ink); background-color:var(--d-card); border:1px solid var(--d-line); border-radius:10px; }
-  .dash .d-btn { margin-left:auto; padding:.45rem .95rem; font:600 .82rem var(--d-sans); color:var(--d-ink); background:var(--d-card); border:1px solid var(--d-line); border-radius:999px; cursor:pointer; }
-  .dash .d-btn:hover { background:var(--d-wash); }
-  .dash .d-aviso { margin:0 0 .85rem; padding:.8rem 1rem; font-size:.88rem; line-height:1.5; color:#5b4300; background:#fdf0cf; border:1px solid #ecd28a; border-radius:12px; }
-  .dash .d-aviso code { padding:.1rem .35rem; font-size:.84rem; background:rgba(0,0,0,.06); border-radius:5px; }
-  .dash .d-mapa__stage { position:relative; overflow:hidden; border:1px solid var(--d-line); border-radius:14px;
-    background:radial-gradient(circle at 1px 1px, rgba(18,39,30,.09) 1px, transparent 1.6px) 0 0 / 22px 22px, #ece9dc; }
-  .dash .d-chart--mapa { height:clamp(460px, 76vh, 820px); }
-  .dash .d-mapa__vacio { position:absolute; inset:0; display:grid; place-items:center; padding:1rem; text-align:center; color:var(--d-soft); background:rgba(255,254,250,.7); }
-  .dash .d-mapa__foot { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem 1.2rem; margin-top:.85rem; font-size:.8rem; color:var(--d-soft); }
-  .dash .d-ramp { display:inline-flex; align-items:center; gap:.5rem; }
-  .dash .d-ramp__bar { width:140px; height:10px; border-radius:5px; background:linear-gradient(90deg, #c9b3ee, #ad8ae4, #9166d6, #7544c2, #5a2fa3, #42207d); }
-  .dash .d-dot { display:inline-block; width:10px; height:10px; margin-right:.35rem; vertical-align:-1px; border-radius:50%; background:#e0a526; border:1.5px solid var(--d-ink); }
-  .dash .d-stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:.5rem; margin:.8rem 0 1rem; }
-  .dash .d-stats div { padding:.6rem .5rem; text-align:center; background:var(--d-wash); border-radius:12px; }
-  .dash .d-stats strong { display:block; font:600 1.45rem/1.1 var(--d-serif); }
-  .dash .d-stats span { font-size:.72rem; letter-spacing:.05em; text-transform:uppercase; color:var(--d-soft); }
-  .dash .d-lista { list-style:none; margin:.6rem 0 0; padding:0; display:grid; gap:.3rem; max-height:480px; overflow:auto; }
-  .dash .d-lista button { width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; gap:.6rem; padding:.55rem .65rem; text-align:left; font:500 .9rem var(--d-sans); color:var(--d-ink); background:transparent; border:1px solid transparent; border-radius:10px; cursor:pointer; }
-  .dash .d-lista button:hover { background:var(--d-wash); border-color:var(--d-line); }
-  .dash .d-lista .d-n { padding:.1rem .55rem; font-size:.8rem; font-weight:700; color:#5a2fa3; background:#efe8fb; border-radius:999px; }
-
-  @media (prefers-reduced-motion:reduce) { .dash *, .dash *::before { animation:none !important; transition:none !important; } }
-</style>
+<link rel="stylesheet" href="{% static 'MisionaBio/css/dashboard.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -141,8 +13,7 @@
      data-geojson="{% static 'MisionaBio/geo/misiones.geojson' %}">
 
   <header class="d-head">
-    <div>
-      <p class="d-eyebrow">Panel de control</p>
+    <div class="d-head__left">
       <h1 class="d-title">Dashboard</h1>
       <p class="d-sub">
         <span class="d-live" aria-hidden="true"></span>
@@ -163,49 +34,50 @@
   </header>
 
   <!-- ============================ RESUMEN ============================ -->
-  <section id="panel-resumen" role="tabpanel" aria-labelledby="tab-resumen">
+  <section id="panel-resumen" class="d-view" role="tabpanel" aria-labelledby="tab-resumen">
 
     <div class="d-kpis">
       <article class="d-kpi d-kpi--feature" style="--i:0">
         <svg class="d-kpi__mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z"/></svg>
-        <div class="d-kpi__top">
-          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z"/><path d="M6 18C9 13 13 9 18 6"/></svg></span>
-          <span class="d-kpi__label">Especies</span>
-        </div>
+        <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z"/><path d="M6 18C9 13 13 9 18 6"/></svg></span>
         <div class="d-kpi__value" data-kpi="especies" data-count="{{ kpis.especies }}">{{ kpis.especies }}</div>
-        <p class="d-kpi__sub"><strong data-kpi="especies_con_avistamientos" data-count="{{ kpis.especies_con_avistamientos }}">{{ kpis.especies_con_avistamientos }}</strong> con avistamientos</p>
+        <div class="d-kpi__text">
+          <span class="d-kpi__label">Especies</span>
+          <p class="d-kpi__sub"><strong data-kpi="especies_con_avistamientos" data-count="{{ kpis.especies_con_avistamientos }}">{{ kpis.especies_con_avistamientos }}</strong> con avistamientos</p>
+        </div>
       </article>
 
       <article class="d-kpi" style="--i:1">
-        <div class="d-kpi__top">
-          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span>
-          <span class="d-kpi__label">Avistamientos</span>
-        </div>
+        <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span>
         <div class="d-kpi__value" data-kpi="avistamientos" data-count="{{ kpis.avistamientos }}">{{ kpis.avistamientos }}</div>
-        <p class="d-kpi__sub">Registrados en toda la provincia</p>
+        <div class="d-kpi__text">
+          <span class="d-kpi__label">Avistamientos</span>
+          <p class="d-kpi__sub">En toda la provincia</p>
+        </div>
       </article>
 
       <article class="d-kpi" style="--i:2">
-        <div class="d-kpi__top">
-          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-          <span class="d-kpi__label">Últimas 24 hs <span class="d-kpi__dot" aria-hidden="true"></span></span>
-        </div>
+        <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
         <div class="d-kpi__value" data-kpi="ultimas_24h" data-count="{{ kpis.ultimas_24h }}">{{ kpis.ultimas_24h }}</div>
-        <p class="d-kpi__sub">Avistamientos cargados desde ayer a esta hora</p>
+        <div class="d-kpi__text">
+          <span class="d-kpi__label">Últimas 24 hs <span class="d-kpi__dot" aria-hidden="true"></span></span>
+          <p class="d-kpi__sub">Desde ayer a esta hora</p>
+        </div>
       </article>
 
       <article class="d-kpi" style="--i:3">
-        <div class="d-kpi__top">
-          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><path d="M8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2"/><path d="m9 14 2 2 4-4"/></svg></span>
-          <span class="d-kpi__label">Por validar</span>
-        </div>
+        <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><path d="M8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2"/><path d="m9 14 2 2 4-4"/></svg></span>
         <div class="d-kpi__value" data-kpi="pendientes" data-count="{{ kpis.pendientes }}">{{ kpis.pendientes }}</div>
-        <p class="d-kpi__sub">Esperan la revisión de un administrador</p>
+        <div class="d-kpi__text">
+          <span class="d-kpi__label">Por validar</span>
+          <p class="d-kpi__sub">Esperan revisión</p>
+        </div>
       </article>
     </div>
 
     <div class="d-grid">
 
+      <!-- Fila 1 -->
       <section class="d-panel d-span-8" aria-labelledby="h-mensual">
         <header class="d-panel__head">
           <div>
@@ -218,7 +90,9 @@
             <button type="button" data-meses="36" aria-pressed="false">36 meses</button>
           </div>
         </header>
-        <div class="d-chart" id="chart-mensual" role="img" aria-label="Avistamientos por mes"></div>
+        <div class="d-chart-box">
+          <div class="d-chart" id="chart-mensual" role="img" aria-label="Avistamientos por mes"></div>
+        </div>
       </section>
 
       <section class="d-panel d-span-4" aria-labelledby="h-estado">
@@ -228,34 +102,41 @@
             <p class="d-hint">Qué parte de los registros ya fue revisada.</p>
           </div>
         </header>
-        <div class="d-donut">
-          <div class="d-chart" id="chart-estado" role="img" aria-label="Avistamientos según su estado de validación"></div>
-          <div class="d-donut__center"><strong id="estado-total">0</strong><span>avistamientos</span></div>
+        <div class="d-estado">
+          <div class="d-donut">
+            <div class="d-chart" id="chart-estado" role="img" aria-label="Avistamientos según su estado de validación"></div>
+            <div class="d-donut__center"><strong id="estado-total">0</strong><span>avistamientos</span></div>
+          </div>
+          <ul class="d-legend" id="legend-estado"></ul>
         </div>
-        <ul class="d-legend" id="legend-estado"></ul>
       </section>
 
-      <section class="d-panel d-span-6" aria-labelledby="h-top">
+      <!-- Fila 2 -->
+      <section class="d-panel d-span-4" aria-labelledby="h-top">
         <header class="d-panel__head">
           <div>
             <h2 id="h-top">Especies más avistadas</h2>
             <p class="d-hint">Las 6 con más registros.</p>
           </div>
         </header>
-        <div class="d-chart" id="chart-top" role="img" aria-label="Especies más avistadas"></div>
+        <div class="d-chart-box">
+          <div class="d-chart" id="chart-top" role="img" aria-label="Especies más avistadas"></div>
+        </div>
       </section>
 
-      <section class="d-panel d-span-6" aria-labelledby="h-clases">
+      <section class="d-panel d-span-3" aria-labelledby="h-clases">
         <header class="d-panel__head">
           <div>
             <h2 id="h-clases">Especies por clase</h2>
-            <p class="d-hint">Cuántas especies del catálogo hay en cada grupo.</p>
+            <p class="d-hint">Especies del catálogo por grupo.</p>
           </div>
         </header>
-        <div class="d-chart" id="chart-clases" role="img" aria-label="Especies por clase taxonómica"></div>
+        <div class="d-chart-box">
+          <div class="d-chart" id="chart-clases" role="img" aria-label="Especies por clase taxonómica"></div>
+        </div>
       </section>
 
-      <section class="d-panel d-span-12" aria-labelledby="h-ultimos">
+      <section class="d-panel d-span-5" aria-labelledby="h-ultimos">
         <header class="d-panel__head">
           <div>
             <h2 id="h-ultimos">Últimos registros cargados</h2>
@@ -266,19 +147,18 @@
         <div class="d-table-wrap">
           <table class="d-table">
             <thead>
-              <tr><th scope="col">Especie</th><th scope="col">Zona</th><th scope="col">Avistado</th><th scope="col">Estado</th><th scope="col">Cargado</th></tr>
+              <tr><th scope="col">Especie</th><th scope="col">Zona</th><th scope="col">Estado</th><th scope="col">Cargado</th></tr>
             </thead>
             <tbody>
               {% for r in ultimos %}
               <tr>
                 <td class="d-sp"><a href="{{ r.url }}">{{ r.especie }}</a>{% if r.cientifico %}<small>{{ r.cientifico }}</small>{% endif %}</td>
-                <td>{{ r.zona|default:"—" }}</td>
-                <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                <td class="d-zona" title="{{ r.zona|default:'' }}">{{ r.zona|default:"—" }}</td>
                 <td><span class="d-badge d-badge--{{ r.estado }}">{{ r.estado_nombre }}</span></td>
-                <td>hace {{ r.hace }}</td>
+                <td class="d-when">hace {{ r.hace }}</td>
               </tr>
               {% empty %}
-              <tr><td colspan="5" class="d-empty">Todavía no hay avistamientos cargados.</td></tr>
+              <tr><td colspan="4" class="d-empty">Todavía no hay avistamientos cargados.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -289,7 +169,7 @@
   </section>
 
   <!-- ============================== MAPA ============================== -->
-  <section id="panel-mapa" role="tabpanel" aria-labelledby="tab-mapa" hidden>
+  <section id="panel-mapa" class="d-view" role="tabpanel" aria-labelledby="tab-mapa" hidden>
     <div class="d-mapa">
 
       <div class="d-panel">
@@ -313,7 +193,7 @@
         </p>
 
         <div class="d-mapa__stage">
-          <div class="d-chart d-chart--mapa" id="mapa-chart" role="img" aria-label="Mapa de Misiones con los avistamientos"></div>
+          <div class="d-chart" id="mapa-chart" role="img" aria-label="Mapa de Misiones con los avistamientos"></div>
           <div class="d-mapa__vacio" id="mapa-vacio" hidden>No hay avistamientos con coordenadas para mostrar.</div>
         </div>
 
@@ -361,7 +241,6 @@
   const TIENE_ECHARTS = typeof window.echarts !== "undefined";
   const nf = new Intl.NumberFormat("es-AR");
 
-  // Los textos vienen de scraping y de usuarios: se escapan antes de armar HTML.
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
   ));
@@ -369,9 +248,30 @@
   const fechaAR = (iso) => { const [y, m, d] = String(iso).split("-"); return y && m && d ? `${d}/${m}/${y}` : iso; };
   const seguro = (nombre, fn) => { try { fn(); } catch (err) { console.error(`[dashboard] ${nombre}:`, err); } };
 
+  /* ---------- Altura: el dashboard ocupa justo lo que se ve de la pantalla ---------- */
+  const mqApilado = window.matchMedia("(max-width: 960px)");
+  const ALTO_MIN = 440;
+  function ajustarAltura() {
+    if (mqApilado.matches) { root.style.removeProperty("--d-h"); return; }
+    const arriba = root.getBoundingClientRect().top + window.scrollY;
+    let h = Math.floor(window.innerHeight - arriba - 8);
+    root.style.setProperty("--d-h", `${Math.max(ALTO_MIN, h)}px`);
+    // Si la página todavía scrollea (paddings o márgenes de base.html), se descuenta lo que sobra
+    for (let i = 0; i < 2; i++) {
+      const sobra = document.documentElement.scrollHeight - window.innerHeight;
+      if (sobra <= 0) break;
+      h -= sobra;
+      root.style.setProperty("--d-h", `${Math.max(ALTO_MIN, h)}px`);
+    }
+  }
+  ajustarAltura();
+  window.addEventListener("resize", ajustarAltura);
+  window.addEventListener("load", ajustarAltura);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustarAltura);
+
   const COLOR = {
     ink: "#1b2a22", soft: "#55645b", muted: "#7d887f", card: "#fffefa", line: "#e6e0d0",
-    verde: "#12805a", verdeOscuro: "#0b5f43", dorado: "#c79a3e", doradoOscuro: "#a67c1f",   // verde y dorado oscuro validados con el script de dataviz
+    verde: "#12805a", verdeOscuro: "#0b5f43", dorado: "#c79a3e", doradoOscuro: "#a67c1f",
   };
   const ESTADO_COLOR = { PENDIENTE: "#fab219", VALIDADO: "#0ca30c", CORREGIDO: "#2a78d6" };
   const RAMPA = ["#c9b3ee", "#ad8ae4", "#9166d6", "#7544c2", "#5a2fa3", "#42207d"];
@@ -390,7 +290,7 @@
   const charts = [];
   function crearGrafico(el) {
     if (!el) return null;
-    if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos. Revisá tu conexión a internet."); return null; }
+    if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos."); return null; }
     const chart = echarts.init(el, null, { renderer: "canvas" });
     charts.push(chart);
     new ResizeObserver(() => chart.resize()).observe(el);
@@ -404,9 +304,6 @@
     el.appendChild(d);
   }
 
-  /* ---------------------------------------------------------------
-     Números animados y actualización en vivo
-  --------------------------------------------------------------- */
   function contar(el, hasta, animar = true) {
     const desde = Number(el.dataset.shown || 0);
     el.dataset.count = String(hasta);
@@ -436,14 +333,11 @@
       });
       const hora = $("#dash-actualizado");
       if (hora && k.actualizado) hora.textContent = k.actualizado;
-    } catch (_) { /* sin conexión: se reintenta en el próximo ciclo */ }
+    } catch (_) {}
   }
   setInterval(refrescar, 60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refrescar(); });
 
-  /* ---------------------------------------------------------------
-     Gráficos del resumen
-  --------------------------------------------------------------- */
   const mensual = (() => {
     const el = $("#chart-mensual");
     let chart = null, meses = 12;
@@ -460,7 +354,7 @@
         title: total === 0
           ? { text: "Sin avistamientos en este período", left: "center", top: "middle", textStyle: { color: COLOR.muted, fontSize: 13, fontWeight: 500, fontFamily: FUENTE } }
           : { show: false },
-        grid: { left: 6, right: 8, top: 26, bottom: 4, containLabel: true },
+        grid: { left: 6, right: 8, top: 18, bottom: 4, containLabel: true },
         tooltip: {
           ...TOOLTIP, trigger: "axis",
           axisPointer: { type: "shadow", shadowStyle: { color: "rgba(47,111,84,.08)" } },
@@ -472,14 +366,14 @@
         xAxis: {
           type: "category", data: etiquetas, axisTick: { show: false },
           axisLine: { lineStyle: { color: COLOR.line } },
-          axisLabel: { color: COLOR.muted, interval: meses <= 12 ? 0 : "auto", lineHeight: 15 },
+          axisLabel: { color: COLOR.muted, interval: meses <= 12 ? 0 : "auto", lineHeight: 14 },
         },
         yAxis: { type: "value", minInterval: 1, axisLabel: { color: COLOR.muted }, splitLine: { lineStyle: { color: COLOR.line } } },
         series: [{
-          type: "bar", data: serie.map((p) => p.n), barMaxWidth: 30,
-          itemStyle: { color: COLOR.verde, borderRadius: [5, 5, 0, 0] },
+          type: "bar", data: serie.map((p) => p.n), barMaxWidth: 24,
+          itemStyle: { color: COLOR.verde, borderRadius: [4, 4, 0, 0] },
           emphasis: { itemStyle: { color: COLOR.verdeOscuro } },
-          label: { show: meses <= 12, position: "top", color: COLOR.ink, fontSize: 11, formatter: (p) => (p.value ? nf.format(p.value) : "") },
+          label: { show: meses <= 12, position: "top", color: COLOR.ink, fontSize: 10, formatter: (p) => (p.value ? nf.format(p.value) : "") },
           animationDelay: (i) => i * 35,
         }],
       }, true);
@@ -530,7 +424,7 @@
       textStyle: TEXTO,
       tooltip: { ...TOOLTIP, trigger: "item", formatter: (p) => `<strong>${esc(p.name)}</strong><br>${nf.format(p.value)} · ${p.percent}%` },
       series: [{
-        type: "pie", radius: ["62%", "86%"], center: ["50%", "50%"], avoidLabelOverlap: false,
+        type: "pie", radius: ["58%", "82%"], center: ["50%", "50%"], avoidLabelOverlap: false,
         label: { show: false }, labelLine: { show: false },
         itemStyle: { borderColor: COLOR.card, borderWidth: 3, borderRadius: 6 },
         emphasis: { scale: true, scaleSize: 5 },
@@ -539,31 +433,29 @@
     });
   }
 
-  function barrasHorizontales(id, filas, color, textoTooltip, vacioTexto) {
+  function barrasHorizontales(id, filas, color, textoTooltip, vacioTexto, maxChars = 20) {
     const el = $(id);
     if (!filas.length) { mensaje(el, vacioTexto); return; }
-    el.style.height = `${Math.min(300, Math.max(150, filas.length * 46 + 24))}px`;   // sin aire de sobra con pocas filas
     const chart = crearGrafico(el);
     if (!chart) return;
     el.setAttribute("aria-label", filas.map((f) => `${cap(f.nombre)}: ${f.n}`).join(". "));
     chart.setOption({
       ...ANIM,
       textStyle: TEXTO,
-      grid: { left: 8, right: 40, top: 4, bottom: 4, containLabel: true },
+      grid: { left: 8, right: 34, top: 4, bottom: 4, containLabel: true },
       tooltip: { ...TOOLTIP, trigger: "axis", axisPointer: { type: "none" }, formatter: (ps) => textoTooltip(filas[ps[0].dataIndex]) },
       xAxis: { type: "value", show: false, max: (v) => Math.max(1, Math.ceil(v.max * 1.12)) },
       yAxis: {
         type: "category", inverse: true,
-        // Los nombres largos se acortan acá; el nombre completo queda en el tooltip.
-        data: filas.map((f) => { const t = cap(f.nombre); return t.length > 24 ? `${t.slice(0, 23)}…` : t; }),
+        data: filas.map((f) => { const t = cap(f.nombre); return t.length > maxChars ? `${t.slice(0, maxChars - 1)}…` : t; }),
         axisTick: { show: false }, axisLine: { show: false },
-        axisLabel: { color: COLOR.ink, margin: 12 },
+        axisLabel: { color: COLOR.ink, margin: 8 },
       },
       series: [{
-        type: "bar", data: filas.map((f) => f.n), barWidth: 14,
-        itemStyle: { color, borderRadius: [0, 6, 6, 0] },
-        showBackground: true, backgroundStyle: { color: "rgba(18,39,30,.05)", borderRadius: 6 },
-        label: { show: true, position: "right", color: COLOR.ink, fontWeight: 600, formatter: (p) => nf.format(p.value) },
+        type: "bar", data: filas.map((f) => f.n), barWidth: "36%", barMaxWidth: 18,
+        itemStyle: { color, borderRadius: [0, 5, 5, 0] },
+        showBackground: true, backgroundStyle: { color: "rgba(18,39,30,.05)", borderRadius: 5 },
+        label: { show: true, position: "right", color: COLOR.ink, fontWeight: 600, fontSize: 10, formatter: (p) => nf.format(p.value) },
         animationDelay: (i) => i * 60,
       }],
     });
@@ -573,17 +465,14 @@
   seguro("estados", dibujarEstados);
   seguro("top", () => barrasHorizontales("#chart-top", DATA.top, COLOR.verde,
     (f) => `<strong>${esc(cap(f.nombre))}</strong>${f.cientifico ? `<br><i style="opacity:.7">${esc(f.cientifico)}</i>` : ""}<br>${nf.format(f.n)} avistamiento${f.n === 1 ? "" : "s"}`,
-    "Todavía no hay avistamientos con especie asignada."));
+    "Todavía no hay avistamientos con especie asignada.", 22));
   seguro("clases", () => barrasHorizontales("#chart-clases", DATA.clases, COLOR.doradoOscuro,
     (f) => `<strong>${esc(cap(f.nombre))}</strong><br>${nf.format(f.n)} especie${f.n === 1 ? "" : "s"}`,
-    "Todavía no hay especies cargadas."));
+    "Todavía no hay especies cargadas.", 14));
 
-  /* ---------------------------------------------------------------
-     Mapa (se arma la primera vez que se abre la pestaña)
-  --------------------------------------------------------------- */
   const mapa = (() => {
-    const PASO = 0.1;   // lado de cada celda, en grados (~11 km)
-    const CIUDADES = [  // referencias aproximadas, solo para orientarse: [nombre, lon, lat, lado de la etiqueta]
+    const PASO = 0.1;
+    const CIUDADES = [
       ["Puerto Iguazú", -54.5736, -25.5991, "right"], ["Eldorado", -54.6347, -26.4000, "right"],
       ["Bernardo de Irigoyen", -53.6481, -26.2517, "left"], ["Oberá", -55.1199, -27.4871, "right"],
       ["Posadas", -55.9008, -27.3621, "right"], ["Apóstoles", -55.7525, -27.9086, "right"],
@@ -596,7 +485,6 @@
     const claveCelda = (lon, lat) => `${Math.floor(lon / PASO)}|${Math.floor(lat / PASO)}`;
     const colorCelda = (n, max) => max <= 1 ? RAMPA[2] : RAMPA[Math.min(RAMPA.length - 1, Math.round(((n - 1) / (max - 1)) * (RAMPA.length - 1)))];
 
-    // Agrupa los avistamientos por lugar exacto (puntos) y por cuadrícula (celdas).
     function agrupar(lista) {
       const puntos = new Map(), celdas = new Map();
       const sumar = (mapaGrupos, clave, base, r) => {
@@ -612,7 +500,6 @@
         const ix = Math.floor(r.lon / PASO), iy = Math.floor(r.lat / PASO);
         sumar(celdas, `${ix}|${iy}`, { clave: `${ix}|${iy}`, lon0: +(ix * PASO).toFixed(6), lat0: +(iy * PASO).toFixed(6) }, r);
       }
-      // Se pasa a objetos simples: ECharts clona los datos y no conserva Map ni Set.
       const cerrar = (m) => [...m.values()].map((g) => {
         const zonas = [...g.zonas.entries()].sort((a, b) => b[1] - a[1]).map(([z]) => z);
         const nombre = zonas.slice(0, 2).join(" · ") || "Ubicación sin nombre";
@@ -677,7 +564,6 @@
       const opcion = { ...ANIM, textStyle: TEXTO, series, tooltip: { ...TOOLTIP, trigger: "item", formatter: tooltip } };
       if (st.geo) {
         opcion.geo = {
-          // layoutCenter + layoutSize conservan las proporciones del mapa (con left/right/top/bottom se estira).
           map: "Misiones", roam: true, layoutCenter: ["50%", "50%"], layoutSize: "100%",
           aspectScale: 0.89, scaleLimit: { min: 1, max: 20 },
           label: { show: false },
@@ -715,12 +601,10 @@
       actualizarPanel(lista, g, max);
     }
 
-    // Acerca el mapa para que Misiones ocupe todo el espacio, aunque el archivo traiga provincias vecinas.
-    // Se mide cuánto ocupa Misiones en pantalla y se ajusta el zoom en esa proporción.
     function encuadrar() {
       if (!st.geo || !st.chart || !st.vista) return;
       const ancho = st.chart.getWidth(), alto = st.chart.getHeight();
-      if (ancho < 50 || alto < 50) return;   // pestaña oculta: se reintenta al mostrarla
+      if (ancho < 50 || alto < 50) return;
       const [[x0, y1], [x1, y0]] = st.vista.encuadre;
       const a = st.chart.convertToPixel({ geoIndex: 0 }, [x0, y1]);
       const b = st.chart.convertToPixel({ geoIndex: 0 }, [x1, y0]);
@@ -728,7 +612,7 @@
       const w = Math.abs(b[0] - a[0]), h = Math.abs(b[1] - a[1]);
       if (!w || !h) return;
       const geo = (st.chart.getOption().geo || [])[0] || {};
-      const zoom = (geo.zoom || 1) * Math.min((ancho - 30) / w, (alto - 30) / h);
+      const zoom = (geo.zoom || 1) * Math.min((ancho - 20) / w, (alto - 20) / h);
       st.chart.setOption({ geo: { zoom, center: [(x0 + x1) / 2, (y0 + y1) / 2] } });
     }
 
@@ -743,7 +627,7 @@
 
       const ul = $("#mapa-lista");
       ul.textContent = "";
-      g.puntos.slice(0, 14).forEach((p) => {
+      g.puntos.slice(0, 40).forEach((p) => {
         const li = document.createElement("li");
         const b = document.createElement("button");
         b.type = "button";
@@ -786,7 +670,6 @@
       const principal = gj.features.find((f) => props(f).rol === "principal")
         || gj.features.find((f) => props(f).name === "Misiones") || gj.features[0];
 
-      // Caja que encuadra a Misiones (con un margen), para que ocupe el mapa aunque haya vecinos.
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       const recorrer = (c) => {
         if (typeof c[0] === "number") { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
@@ -795,7 +678,6 @@
       recorrer(principal.geometry.coordinates);
       const mx = (x1 - x0) * 0.04, my = (y1 - y0) * 0.04;
 
-      // Las regiones vecinas (si el archivo las trae) se pintan atenuadas.
       const contexto = gj.features.filter((f) => f !== principal).map((f) => ({
         name: props(f).name,
         itemStyle: { areaColor: "#ece9dc", borderColor: "#b9c2b8", borderWidth: 1, borderType: "dashed" },
@@ -827,13 +709,13 @@
         $$("[data-modo]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
         dibujar();
       }));
-      $("#mapa-reset").addEventListener("click", () => dibujar());   // vuelve a armar el mapa: restablece zoom y posición
+      $("#mapa-reset").addEventListener("click", () => dibujar());
     }
 
     async function iniciar() {
       llenarEspecies();
       enlazar();
-      if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos. Revisá tu conexión a internet."); return; }
+      if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos."); return; }
       st.chart = echarts.init(el);
       new ResizeObserver(() => { st.chart.resize(); if (st.grupos) encuadrar(); }).observe(el);
       st.chart.showLoading({ text: "Cargando mapa…", color: COLOR.dorado, textColor: COLOR.soft, maskColor: "rgba(255,254,250,.7)" });
@@ -856,9 +738,6 @@
     return { activar };
   })();
 
-  /* ---------------------------------------------------------------
-     Pestañas Resumen / Mapa
-  --------------------------------------------------------------- */
   const tabs = $$('[role="tab"]');
   function mostrar(nombre, { foco = false, hash = true } = {}) {
     tabs.forEach((t) => {
@@ -870,6 +749,7 @@
     $$('[role="tabpanel"]').forEach((p) => { p.hidden = p.id !== `panel-${nombre}`; });
     if (hash) history.replaceState(null, "", nombre === "mapa" ? "#mapa" : location.pathname + location.search);
     requestAnimationFrame(() => {
+      ajustarAltura();
       if (nombre === "mapa") mapa.activar(); else charts.forEach((c) => c.resize());
     });
   }

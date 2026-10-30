@@ -2,6 +2,18 @@
 
 {% block title %}Avistamiento del {{ registro.fecha_avistamiento|date:"d/m/Y" }}{% endblock %}
 
+{% block extra_head %}
+<style>
+  .news-card__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .75rem 1.5rem; }
+  .news-card__title { margin: .25rem 0 .2rem; font-size: 1.15rem; line-height: 1.35; }
+  .news-card__title a { color: inherit; text-decoration: none; }
+  .news-card__title a:hover { text-decoration: underline; }
+  .news-card__meta { margin: 0; font-size: .88rem; color: #55645b; }
+  .news-card__quote { margin: 1rem 0 0; padding: .6rem 1rem; border-left: 3px solid #c79a3e; background: #f6f2e7; border-radius: 0 10px 10px 0; font-style: italic; color: #1b2a22; }
+  .news-card__quote-label { display: block; margin-bottom: .25rem; font-style: normal; font-size: .72rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #7d887f; }
+</style>
+{% endblock %}
+
 {% block content %}
 
   <a href="{% url 'avistamientos:lista' %}" class="back-link">
@@ -17,193 +29,184 @@
       </p>
     </div>
 
-```
-{% if user.es_administrador %}
-  <div class="page-header__actions">
-    <a
-      href="{% url 'avistamientos:editar' registro.pk %}"
-      class="btn btn--outline">
-      Editar
-    </a>
+    {% if user.es_administrador %}
+      <div class="page-header__actions">
+        <a
+          href="{% url 'avistamientos:editar' registro.pk %}"
+          class="btn btn--outline">
+          Editar
+        </a>
 
-    <a
-      href="{% url 'avistamientos:eliminar' registro.pk %}"
-      class="btn btn--danger">
-      Eliminar
-    </a>
-  </div>
-{% endif %}
-```
-
+        <a
+          href="{% url 'avistamientos:eliminar' registro.pk %}"
+          class="btn btn--danger">
+          Eliminar
+        </a>
+      </div>
+    {% endif %}
   </div>
 
   <section class="card detail-card" aria-label="Datos del avistamiento">
 
-```
-<dl class="detail-list">
+    <dl class="detail-list">
 
-  <div>
-    <dt>Especie</dt>
-    <dd>
-      {% if registro.especie %}
+      <div>
+        <dt>Especie</dt>
+        <dd>
+          {% if registro.especie %}
 
-        <a
-          href="{% url 'especies:detalle' registro.especie.pk %}"
-          class="sci-name">
-          {{ registro.especie.nombre_cientifico }}
-        </a>
+            <a
+              href="{% url 'especies:detalle' registro.especie.pk %}"
+              class="sci-name">
+              {{ registro.especie.nombre_cientifico }}
+            </a>
 
-        {% if registro.especie.nombre_comun %}
-          <span class="sub">
-            {{ registro.especie.nombre_comun }}
+            {% if registro.especie.nombre_comun %}
+              <span class="sub">
+                {{ registro.especie.nombre_comun }}
+              </span>
+            {% endif %}
+
+          {% else %}
+
+            <span class="badge badge--ne">
+              Sin identificar
+            </span>
+
+          {% endif %}
+        </dd>
+      </div>
+
+      <div>
+        <dt>Estado de calidad</dt>
+        <dd>
+          <span class="badge badge--{{ registro.estado_calidad|lower }}">
+            {{ registro.get_estado_calidad_display }}
           </span>
-        {% endif %}
+        </dd>
+      </div>
 
-      {% else %}
+      <div>
+        <dt>Fecha de avistamiento</dt>
+        <dd>
+          {{ registro.fecha_avistamiento|date:"d/m/Y" }}
+        </dd>
+      </div>
 
-        <span class="badge badge--ne">
-          Sin identificar
-        </span>
+      <div>
+        <dt>Zona</dt>
+        <dd>
+          {{ registro.zona|default:"—" }}
+        </dd>
+      </div>
 
-      {% endif %}
-    </dd>
-  </div>
+      <div>
+        <dt>Coordenadas</dt>
+        <dd>
+          {{ registro.latitud|floatformat:6 }},
+          {{ registro.longitud|floatformat:6 }}
 
-  <div>
-    <dt>Estado de calidad</dt>
-    <dd>
-      <span class="badge badge--{{ registro.estado_calidad|lower }}">
-        {{ registro.get_estado_calidad_display }}
-      </span>
-    </dd>
-  </div>
+          <span class="sub">
+            <a
+              href="https://www.openstreetmap.org/?mlat={{ registro.latitud|stringformat:'f' }}&amp;mlon={{ registro.longitud|stringformat:'f' }}#map=12/{{ registro.latitud|stringformat:'f' }}/{{ registro.longitud|stringformat:'f' }}"
+              target="_blank"
+              rel="noopener">
+              Ver en el mapa
+            </a>
+          </span>
+        </dd>
+      </div>
 
-  <div>
-    <dt>Fecha de avistamiento</dt>
-    <dd>
-      {{ registro.fecha_avistamiento|date:"d/m/Y" }}
-    </dd>
-  </div>
+      <div>
+        <dt>Fuente</dt>
+        <dd>
+          {{ registro.fuente|default:"—" }}
+        </dd>
+      </div>
 
-  <div>
-    <dt>Zona</dt>
-    <dd>
-      {{ registro.zona|default:"—" }}
-    </dd>
-  </div>
+      <div>
+        <dt>Curador</dt>
+        <dd>
+          {% if registro.usuario_curador %}
+            {{ registro.usuario_curador.get_username }}
+          {% else %}
+            —
+          {% endif %}
+        </dd>
+      </div>
 
-  <div>
-    <dt>Coordenadas</dt>
-    <dd>
-      {{ registro.latitud|floatformat:6 }},
-      {{ registro.longitud|floatformat:6 }}
+      <div>
+        <dt>Cargado el</dt>
+        <dd>
+          {{ registro.fecha_carga|date:"d/m/Y H:i" }}
+        </dd>
+      </div>
 
-      <span class="sub">
-        <a
-          href="https://www.openstreetmap.org/?mlat={{ registro.latitud|stringformat:'f' }}&amp;mlon={{ registro.longitud|stringformat:'f' }}#map=12/{{ registro.latitud|stringformat:'f' }}/{{ registro.longitud|stringformat:'f' }}"
-          target="_blank"
-          rel="noopener">
-          Ver en el mapa
-        </a>
-      </span>
-    </dd>
-  </div>
-
-  <div>
-    <dt>Fuente</dt>
-    <dd>
-      {{ registro.fuente.nombre }}
-
-      <span class="sub">
-        {{ registro.fuente.get_tipo_display }}
-        · confiabilidad
-        {{ registro.fuente.get_confiabilidad_display|lower }}
-      </span>
-    </dd>
-  </div>
-
-  <div>
-    <dt>Curador</dt>
-    <dd>
-      {% if registro.usuario_curador %}
-        {{ registro.usuario_curador.get_username }}
-      {% else %}
-        —
-      {% endif %}
-    </dd>
-  </div>
-
-  <div>
-    <dt>Cargado el</dt>
-    <dd>
-      {{ registro.fecha_carga|date:"d/m/Y H:i" }}
-    </dd>
-  </div>
-
-</dl>
-```
+    </dl>
 
   </section>
 
-  <!-- Imágenes del avistamiento -->
+  <!-- Noticia de origen -->
 
   <section
-    class="card detail-card image-gallery-card"
-    aria-labelledby="imagenes-titulo">
+    class="card detail-card news-card"
+    aria-labelledby="noticia-titulo">
 
-```
-<h2 class="card__title" id="imagenes-titulo">
-  Imágenes del avistamiento
-</h2>
+    <div class="news-card__head">
+      <div>
+        <h2 class="card__title" id="noticia-titulo">
+          Noticia de origen
+        </h2>
 
-{% with imagenes=registro.imagenes.all %}
+        {% if registro.noticia %}
 
-  {% if imagenes %}
-
-    <div class="image-gallery">
-
-      {% for imagen in imagenes %}
-
-        {% if imagen.archivo %}
-
-          <figure class="image-gallery__item">
-
-            <a
-              href="{{ imagen.archivo.url }}"
-              target="_blank"
-              rel="noopener">
-
-              <img
-                src="{{ imagen.archivo.url }}"
-                alt="Imagen del avistamiento{% if imagen.descripcion %}: {{ imagen.descripcion }}{% endif %}"
-                class="image-gallery__image">
-
-            </a>
-
-            {% if imagen.descripcion %}
-              <figcaption>
-                {{ imagen.descripcion }}
-              </figcaption>
+          <p class="news-card__title">
+            {% if registro.noticia.url %}
+              <a
+                href="{{ registro.noticia.url }}"
+                target="_blank"
+                rel="noopener noreferrer">
+                <strong>{{ registro.noticia.titulo|default:"Ver noticia" }}</strong>
+              </a>
+            {% else %}
+              <strong>{{ registro.noticia.titulo|default:"Sin título" }}</strong>
             {% endif %}
+          </p>
 
-          </figure>
+          <p class="news-card__meta">
+            {{ registro.fuente|default:"Medio no indicado" }}
+            {% if registro.noticia.fecha_publicacion %}
+              · publicada el {{ registro.noticia.fecha_publicacion|date:"d/m/Y" }}
+            {% endif %}
+          </p>
+
+        {% else %}
+
+          <p class="muted">
+            Este avistamiento no tiene una noticia asociada.
+          </p>
 
         {% endif %}
+      </div>
 
-      {% endfor %}
-
+      {% if registro.noticia and registro.noticia.url %}
+        <a
+          href="{{ registro.noticia.url }}"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn--primary btn--sm">
+          Leer la noticia <span aria-hidden="true">↗</span>
+          <span class="sr-only">(abre en una pestaña nueva)</span>
+        </a>
+      {% endif %}
     </div>
 
-  {% else %}
-
-    <p class="muted">
-      Este avistamiento no tiene imágenes asociadas.
-    </p>
-
-  {% endif %}
-
-{% endwith %}
-```
+    {% if registro.fragmento_origen %}
+      <blockquote class="news-card__quote">
+        <span class="news-card__quote-label">Fragmento que respalda el registro</span>
+        “{{ registro.fragmento_origen }}”
+      </blockquote>
+    {% endif %}
 
   </section>
 

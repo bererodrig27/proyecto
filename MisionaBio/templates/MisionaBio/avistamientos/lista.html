@@ -2,6 +2,23 @@
 
 {% block title %}Avistamientos{% endblock %}
 
+{% block extra_head %}
+<style>
+  .news-tip {
+    position: fixed; z-index: 1000; max-width: 340px; padding: .55rem .8rem;
+    background: #12271e; color: #fbf6e8; border-radius: 10px; font-size: .82rem; line-height: 1.35;
+    box-shadow: 0 12px 30px rgba(18, 39, 30, .35); pointer-events: none;
+    opacity: 0; transform: translateY(4px); transition: opacity .15s ease, transform .15s ease;
+  }
+  .news-tip.is-on { opacity: 1; transform: none; }
+  .news-tip strong { display: block; font-weight: 600; }
+  .news-tip small { display: block; margin-top: .2rem; color: #e3bf72; font-size: .74rem; }
+
+  .zona-cell { max-width: 320px; }
+  .zona-cell .frag { font-size: .85rem; line-height: 1.35; font-style: italic; color: #4a5a52; }
+</style>
+{% endblock %}
+
 {% block content %}
 
   <div class="page-header">
@@ -98,8 +115,8 @@
           <tr>
             <th scope="col">Fecha</th>
             <th scope="col">Especie</th>
+            <th scope="col">Departamento</th>
             <th scope="col">Zona</th>
-            <th scope="col">Coordenadas</th>
             <th scope="col">Fuente</th>
             <th scope="col">Estado</th>
             <th scope="col">
@@ -143,12 +160,17 @@
               </td>
 
               <td>
-                {{ r.zona|default:"—" }}
+                {{ r.departamento|default:"—" }}
               </td>
 
-              <td>
-                {{ r.latitud|floatformat:4 }},
-                {{ r.longitud|floatformat:4 }}
+              <td class="zona-cell">
+                {% if r.fragmento_origen %}
+                  <span class="frag" title="{{ r.fragmento_origen }}">
+                    “{{ r.fragmento_origen|truncatechars:110 }}”
+                  </span>
+                {% else %}
+                  {{ r.zona|default:"—" }}
+                {% endif %}
               </td>
 
               <td>
@@ -157,7 +179,8 @@
                     href="{{ r.noticia.url }}"
                     target="_blank"
                     rel="noopener noreferrer"
-                    title="{{ r.noticia.titulo }}">
+                    {% if r.noticia.titulo %}data-news-title="{{ r.noticia.titulo }}"
+                    data-news-meta="{{ r.fuente|default:'' }}{% if r.noticia.fecha_publicacion %} · {{ r.noticia.fecha_publicacion|date:'d/m/Y' }}{% endif %}"{% endif %}>
                     {{ r.fuente|default:"Ver nota" }}
                     <span aria-hidden="true">↗</span>
                     <span class="sr-only">(abre la nota original en una pestaña nueva)</span>
@@ -223,4 +246,55 @@
 
   </section>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const links = document.querySelectorAll("[data-news-title]");
+  if (!links.length) return;
+
+  const tip = document.createElement("div");
+  tip.className = "news-tip";
+  tip.id = "news-tip";
+  tip.setAttribute("role", "tooltip");
+  document.body.appendChild(tip);
+
+  function mostrar(a) {
+    tip.textContent = "";
+    const t = document.createElement("strong");
+    t.textContent = a.dataset.newsTitle;
+    tip.appendChild(t);
+    if (a.dataset.newsMeta && a.dataset.newsMeta.trim()) {
+      const m = document.createElement("small");
+      m.textContent = a.dataset.newsMeta.trim();
+      tip.appendChild(m);
+    }
+    a.setAttribute("aria-describedby", "news-tip");
+
+    const r = a.getBoundingClientRect();
+    tip.style.left = "0px"; tip.style.top = "0px";
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+    let y = r.top - h - 8;
+    if (y < 8) y = r.bottom + 8;          // sin lugar arriba: se muestra debajo
+    tip.style.left = `${x}px`;
+    tip.style.top = `${y}px`;
+    tip.classList.add("is-on");
+  }
+  function ocultar(a) {
+    tip.classList.remove("is-on");
+    a.removeAttribute("aria-describedby");
+  }
+
+  links.forEach((a) => {
+    a.addEventListener("mouseenter", () => mostrar(a));
+    a.addEventListener("mouseleave", () => ocultar(a));
+    a.addEventListener("focus", () => mostrar(a));
+    a.addEventListener("blur", () => ocultar(a));
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") tip.classList.remove("is-on"); });
+  window.addEventListener("scroll", () => tip.classList.remove("is-on"), { passive: true });
+})();
+</script>
 {% endblock %}
