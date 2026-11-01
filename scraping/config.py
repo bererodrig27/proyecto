@@ -47,7 +47,7 @@ LOG_CSV = DATOS_DIR / "avistamientos_extraidos.csv"   # auditoría de lo que dev
 USER_AGENT = "TPI-Biodiversidad-Misiones/0.2 (proyecto educativo; contacto: tu_mail@ejemplo.com)"
 PAUSA_SEGUNDOS = 2
 TIMEOUT = 15
-MAX_NOTAS_POR_CORRIDA = 80
+MAX_NOTAS_POR_CORRIDA = 150
 
 # ------------------------------------------------------------------ IA (Gemini)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")

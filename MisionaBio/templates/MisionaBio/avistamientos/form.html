@@ -2,7 +2,34 @@
 
 {% block title %}{{ titulo }}{% endblock %}
 
+{% block extra_head %}
+<style>
+  /* Formulario de avistamiento: tarjeta a todo el ancho del contenedor (alcance limitado a .av-form) */
+  .av-form { --af-ink:#1b2a22; --af-muted:#7d887f; --af-line:#e6e0d0; --af-wash:#f6f2e7; --af-green:#0b5f43; }
+  .av-form .page-header h1 { font-family:"Fraunces", Georgia, serif; font-weight:600; letter-spacing:-.01em; }
+  .av-form .form-card {
+    width:100%; max-width:none; box-sizing:border-box; padding:clamp(1.1rem,2.4vw,2rem);
+    border:1px solid var(--af-line); border-radius:16px; box-shadow:0 1px 2px rgba(18,39,30,.04), 0 10px 28px -18px rgba(18,39,30,.25);
+  }
+  .av-form .form-card > *, .av-form .form-card fieldset { max-width:none; }
+
+  .av-form .field label { font-size:.74rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--af-muted); }
+  .av-form .field input:not([type="checkbox"]):not([type="file"]), .av-form .field select, .av-form .field textarea {
+    width:100%; box-sizing:border-box; border:1px solid var(--af-line); border-radius:10px; background:#fff;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .av-form .field input:focus-visible, .av-form .field select:focus-visible, .av-form .field textarea:focus-visible {
+    outline:none; border-color:var(--af-green); box-shadow:0 0 0 3px rgba(11,95,67,.16);
+  }
+
+
+  .av-form .form-actions { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.75rem; padding-top:1.25rem; border-top:1px solid var(--af-line); }
+  @media (max-width:640px) { .av-form .form-actions .btn { flex:1 1 100%; text-align:center; } }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="av-form">
 
   <div class="page-header">
     <div>
@@ -23,110 +50,12 @@
   </div>
 
   <form method="post"
-        enctype="multipart/form-data"
         class="card form-card"
         novalidate>
 
     {% csrf_token %}
 
     {% include "MisionaBio/_campos_form.html" %}
-
-    <section class="image-upload-section" aria-labelledby="imagenes-titulo">
-
-      <div class="image-upload-section__header">
-        <div>
-          <h2 class="card__title" id="imagenes-titulo">Imágenes del avistamiento</h2>
-          <p class="field-help">
-            Podés cargar hasta 10 imágenes. Se aceptan archivos JPG, JPEG, PNG o WEBP
-            de hasta 8 MB cada uno.
-          </p>
-        </div>
-      </div>
-
-      {{ formset.management_form }}
-
-      {% if formset.non_form_errors %}
-        <div class="message message--error" role="alert">
-          {% for error in formset.non_form_errors %}
-            {{ error }}
-          {% endfor %}
-        </div>
-      {% endif %}
-
-      <div class="image-upload-list">
-
-        {% for imagen_form in formset %}
-          <div class="image-upload-item">
-
-            {% for hidden in imagen_form.hidden_fields %}
-              {{ hidden }}
-            {% endfor %}
-
-            {% if imagen_form.instance.pk and imagen_form.instance.archivo %}
-              <div class="image-upload-item__preview">
-                <img
-                  src="{{ imagen_form.instance.archivo.url }}"
-                  alt="Imagen del avistamiento"
-                  class="image-preview"
-                >
-              </div>
-            {% endif %}
-
-            <div class="image-upload-item__fields">
-
-              <div class="field{% if imagen_form.archivo.errors %} field--invalid{% endif %}">
-                <label for="{{ imagen_form.archivo.id_for_label }}">
-                  {% if imagen_form.instance.pk %}
-                    Reemplazar imagen
-                  {% else %}
-                    Imagen
-                  {% endif %}
-                </label>
-
-                {{ imagen_form.archivo }}
-
-                {% if imagen_form.archivo.help_text %}
-                  <p class="field-help">{{ imagen_form.archivo.help_text }}</p>
-                {% endif %}
-
-                {% for error in imagen_form.archivo.errors %}
-                  <p class="field-error">{{ error }}</p>
-                {% endfor %}
-              </div>
-
-              <div class="field{% if imagen_form.descripcion.errors %} field--invalid{% endif %}">
-                <label for="{{ imagen_form.descripcion.id_for_label }}">
-                  Descripción
-                </label>
-
-                {{ imagen_form.descripcion }}
-
-                {% for error in imagen_form.descripcion.errors %}
-                  <p class="field-error">{{ error }}</p>
-                {% endfor %}
-              </div>
-
-              {% if imagen_form.instance.pk %}
-                <div class="image-delete">
-                  <label for="{{ imagen_form.DELETE.id_for_label }}">
-                    {{ imagen_form.DELETE }}
-                    Eliminar esta imagen
-                  </label>
-
-                  {% for error in imagen_form.DELETE.errors %}
-                    <p class="field-error">{{ error }}</p>
-                  {% endfor %}
-                </div>
-              {% endif %}
-
-            </div>
-
-          </div>
-        {% endfor %}
-
-      </div>
-
-    </section>
 
     <div class="form-actions">
       <button type="submit" class="btn btn--primary">{{ boton }}</button>
@@ -140,4 +69,5 @@
 
   </form>
 
+</div>
 {% endblock %}

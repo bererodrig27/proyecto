@@ -4,135 +4,7 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block extra_head %}
-<style>
-  .dash {
-    --d-ink:#1b2a22; --d-soft:#55645b; --d-muted:#7d887f;
-    --d-card:#fffefa; --d-line:#e6e0d0; --d-wash:#f6f2e7;
-    --d-g950:#0f221a; --d-g900:#12271e; --d-g700:#1f5a43; --d-g600:#2f6f54; --d-g100:#dcebe2;
-    --d-gold:#c79a3e; --d-gold-ink:#7a5a14;
-    --d-serif:"Fraunces", Georgia, "Times New Roman", serif;
-    --d-sans:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --d-r:16px;
-    color:var(--d-ink); font-family:var(--d-sans);
-    padding-bottom:2rem;
-  }
-  .dash [hidden] { display:none !important; }
-
-  /* ---------- Encabezado y pestañas ---------- */
-  .dash .d-head { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:1rem 1.5rem; margin:.4rem 0 1.4rem; }
-  .dash .d-eyebrow { margin:0 0 .35rem; font-size:.74rem; letter-spacing:.14em; text-transform:uppercase; font-weight:600; color:var(--d-gold-ink); }
-  .dash .d-title { margin:0; font:600 clamp(2rem,4.5vw,2.9rem)/1.05 var(--d-serif); letter-spacing:-.015em; color:var(--d-ink); }
-  .dash .d-sub { display:flex; align-items:center; gap:.55rem; margin:.65rem 0 0; font-size:.92rem; color:var(--d-soft); }
-  .dash .d-live { flex:none; width:9px; height:9px; border-radius:50%; background:#2fa36b; animation:d-pulse 2s infinite; }
-  @keyframes d-pulse { 0% { box-shadow:0 0 0 0 rgba(47,163,107,.55); } 70% { box-shadow:0 0 0 9px rgba(47,163,107,0); } 100% { box-shadow:0 0 0 0 rgba(47,163,107,0); } }
-
-  .dash .d-tabs { display:inline-flex; gap:.25rem; padding:.3rem; background:var(--d-wash); border:1px solid var(--d-line); border-radius:999px; }
-  .dash .d-tab { display:inline-flex; align-items:center; gap:.5rem; border:0; background:transparent; color:var(--d-soft); font:600 .92rem var(--d-sans); padding:.62rem 1.2rem; border-radius:999px; cursor:pointer; transition:background .2s, color .2s, box-shadow .2s; }
-  .dash .d-tab svg { width:18px; height:18px; }
-  .dash .d-tab:hover { color:var(--d-ink); }
-  .dash .d-tab[aria-selected="true"] { background:var(--d-g900); color:#fbf6e8; box-shadow:0 4px 14px rgba(18,39,30,.28); }
-  .dash .d-tab:focus-visible, .dash .d-seg button:focus-visible, .dash .d-lista button:focus-visible, .dash .d-field select:focus-visible { outline:2px solid var(--d-gold); outline-offset:2px; }
-
-  /* ---------- Tarjetas de números ---------- */
-  .dash .d-kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(215px, 1fr)); gap:1rem; margin-bottom:1rem; }
-  .dash .d-kpi { position:relative; overflow:hidden; background:var(--d-card); border:1px solid var(--d-line); border-radius:var(--d-r); padding:1.15rem 1.25rem 1.1rem; transition:transform .25s, box-shadow .25s; animation:d-rise .6s both; animation-delay:calc(var(--i, 0) * 70ms); }
-  .dash .d-kpi:hover { transform:translateY(-3px); box-shadow:0 14px 30px -14px rgba(18,39,30,.28); }
-  .dash .d-kpi__top { display:flex; align-items:center; gap:.6rem; margin-bottom:.85rem; }
-  .dash .d-kpi__icon { flex:none; display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:var(--d-g100); color:var(--d-g700); }
-  .dash .d-kpi__icon svg { width:18px; height:18px; }
-  .dash .d-kpi__label { font-size:.76rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--d-soft); }
-  .dash .d-kpi__value { font:600 clamp(2.5rem,5vw,3.3rem)/1 var(--d-serif); letter-spacing:-.02em; font-variant-numeric:lining-nums tabular-nums; }
-  .dash .d-kpi__sub { margin:.65rem 0 0; font-size:.86rem; color:var(--d-soft); }
-  .dash .d-kpi__sub strong { color:var(--d-ink); font-weight:600; }
-  .dash .d-kpi--feature { background:linear-gradient(155deg, var(--d-g900), var(--d-g950)); border-color:var(--d-g900); color:#fbf6e8; }
-  .dash .d-kpi--feature .d-kpi__icon { background:rgba(199,154,62,.18); color:#e3bf72; }
-  .dash .d-kpi--feature .d-kpi__label, .dash .d-kpi--feature .d-kpi__sub { color:#c9d6cd; }
-  .dash .d-kpi--feature .d-kpi__sub strong { color:#fbf6e8; }
-  .dash .d-kpi--feature .d-kpi__value { color:#f0c978; }
-  .dash .d-kpi__mark { position:absolute; right:-14px; bottom:-18px; width:110px; height:110px; color:#fff; opacity:.06; pointer-events:none; }
-  .dash .d-kpi__dot { display:inline-block; width:8px; height:8px; margin-left:.15rem; border-radius:50%; background:#2fa36b; animation:d-pulse 2s infinite; vertical-align:middle; }
-  .dash .d-kpi.is-updated { animation:d-flash 1.4s ease; }
-  @keyframes d-flash { 0% { box-shadow:0 0 0 0 rgba(199,154,62,.65); } 70% { box-shadow:0 0 0 12px rgba(199,154,62,0); } 100% { box-shadow:0 0 0 0 rgba(199,154,62,0); } }
-  @keyframes d-rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-
-  /* ---------- Paneles y grilla ---------- */
-  .dash .d-grid { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:1rem; }
-  .dash .d-span-4 { grid-column:span 4; }
-  .dash .d-span-6 { grid-column:span 6; }
-  .dash .d-span-8 { grid-column:span 8; }
-  .dash .d-span-12 { grid-column:span 12; }
-  @media (max-width:960px) { .dash .d-span-4, .dash .d-span-6, .dash .d-span-8 { grid-column:span 12; } }
-
-  .dash .d-panel { min-width:0; background:var(--d-card); border:1px solid var(--d-line); border-radius:var(--d-r); padding:1.15rem 1.25rem 1.25rem; }
-  .dash .d-panel__head { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:.6rem 1rem; margin-bottom:.6rem; }
-  .dash .d-panel h2 { margin:0; font:600 1.12rem/1.25 var(--d-serif); letter-spacing:-.005em; color:var(--d-ink); }
-  .dash .d-hint { margin:.2rem 0 0; font-size:.82rem; color:var(--d-muted); }
-  .dash .d-link { font-size:.85rem; font-weight:600; color:var(--d-g700); text-decoration:none; }
-  .dash .d-link:hover { text-decoration:underline; }
-
-  .dash .d-chart { width:100%; height:280px; }
-  .dash .d-chart > .d-empty { height:100%; display:grid; place-items:center; }
-  .dash .d-empty { padding:2rem 1rem; text-align:center; color:var(--d-muted); font-size:.92rem; }
-
-  .dash .d-seg { display:inline-flex; padding:2px; border:1px solid var(--d-line); border-radius:999px; background:var(--d-wash); }
-  .dash .d-seg button { border:0; background:transparent; font:600 .8rem var(--d-sans); color:var(--d-soft); padding:.38rem .85rem; border-radius:999px; cursor:pointer; }
-  .dash .d-seg button[aria-pressed="true"] { background:var(--d-card); color:var(--d-ink); box-shadow:0 1px 3px rgba(18,39,30,.18); }
-
-  .dash .d-donut { position:relative; height:210px; }
-  .dash .d-donut .d-chart { height:100%; }
-  .dash .d-donut__center { position:absolute; inset:0; display:grid; place-content:center; text-align:center; pointer-events:none; }
-  .dash .d-donut__center strong { font:600 2rem/1 var(--d-serif); }
-  .dash .d-donut__center span { margin-top:.25rem; font-size:.78rem; color:var(--d-soft); }
-  .dash .d-legend { list-style:none; margin:.9rem 0 0; padding:0; display:grid; gap:.5rem; }
-  .dash .d-legend li { display:grid; grid-template-columns:auto 1fr auto auto; align-items:center; gap:.6rem; font-size:.9rem; }
-  .dash .d-legend__chip { width:12px; height:12px; border-radius:4px; }
-  .dash .d-legend__n { font-weight:600; }
-  .dash .d-legend__pct { min-width:3.2ch; text-align:right; font-size:.82rem; color:var(--d-muted); }
-
-  /* ---------- Tabla de últimos registros ---------- */
-  .dash .d-table-wrap { overflow-x:auto; margin:0 -.25rem; }
-  .dash .d-table { width:100%; min-width:640px; border-collapse:collapse; font-size:.92rem; }
-  .dash .d-table th { text-align:left; padding:.55rem .75rem; font-size:.74rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--d-muted); border-bottom:1px solid var(--d-line); }
-  .dash .d-table td { padding:.8rem .75rem; vertical-align:middle; border-bottom:1px solid var(--d-line); }
-  .dash .d-table tbody tr:last-child td { border-bottom:0; }
-  .dash .d-table tbody tr:hover { background:var(--d-wash); }
-  .dash .d-sp a { font-weight:600; color:var(--d-ink); text-decoration:none; }
-  .dash .d-sp a:hover { text-decoration:underline; }
-  .dash .d-sp small { display:block; font-size:.8rem; font-style:italic; color:var(--d-muted); }
-  .dash .d-badge { display:inline-block; padding:.2rem .6rem; border-radius:999px; font-size:.74rem; font-weight:600; white-space:nowrap; }
-  .dash .d-badge--PENDIENTE { background:#fdf0cf; color:#6b4d00; }
-  .dash .d-badge--VALIDADO { background:#d9efd9; color:#0b550b; }
-  .dash .d-badge--CORREGIDO { background:#dce9fa; color:#14468a; }
-
-  /* ---------- Mapa ---------- */
-  .dash .d-mapa { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:1rem; }
-  @media (max-width:1000px) { .dash .d-mapa { grid-template-columns:1fr; } }
-  .dash .d-mapa__bar { display:flex; flex-wrap:wrap; align-items:center; gap:.7rem 1rem; margin-bottom:.85rem; }
-  .dash .d-field { display:inline-flex; align-items:center; gap:.5rem; font-size:.82rem; font-weight:600; color:var(--d-soft); }
-  .dash .d-field select { max-width:220px; padding:.42rem 2rem .42rem .7rem; font:500 .88rem var(--d-sans); color:var(--d-ink); background-color:var(--d-card); border:1px solid var(--d-line); border-radius:10px; }
-  .dash .d-btn { margin-left:auto; padding:.45rem .95rem; font:600 .82rem var(--d-sans); color:var(--d-ink); background:var(--d-card); border:1px solid var(--d-line); border-radius:999px; cursor:pointer; }
-  .dash .d-btn:hover { background:var(--d-wash); }
-  .dash .d-aviso { margin:0 0 .85rem; padding:.8rem 1rem; font-size:.88rem; line-height:1.5; color:#5b4300; background:#fdf0cf; border:1px solid #ecd28a; border-radius:12px; }
-  .dash .d-aviso code { padding:.1rem .35rem; font-size:.84rem; background:rgba(0,0,0,.06); border-radius:5px; }
-  .dash .d-mapa__stage { position:relative; overflow:hidden; border:1px solid var(--d-line); border-radius:14px;
-    background:radial-gradient(circle at 1px 1px, rgba(18,39,30,.09) 1px, transparent 1.6px) 0 0 / 22px 22px, #ece9dc; }
-  .dash .d-chart--mapa { height:clamp(460px, 76vh, 820px); }
-  .dash .d-mapa__vacio { position:absolute; inset:0; display:grid; place-items:center; padding:1rem; text-align:center; color:var(--d-soft); background:rgba(255,254,250,.7); }
-  .dash .d-mapa__foot { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem 1.2rem; margin-top:.85rem; font-size:.8rem; color:var(--d-soft); }
-  .dash .d-ramp { display:inline-flex; align-items:center; gap:.5rem; }
-  .dash .d-ramp__bar { width:140px; height:10px; border-radius:5px; background:linear-gradient(90deg, #c9b3ee, #ad8ae4, #9166d6, #7544c2, #5a2fa3, #42207d); }
-  .dash .d-dot { display:inline-block; width:10px; height:10px; margin-right:.35rem; vertical-align:-1px; border-radius:50%; background:#e0a526; border:1.5px solid var(--d-ink); }
-  .dash .d-stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:.5rem; margin:.8rem 0 1rem; }
-  .dash .d-stats div { padding:.6rem .5rem; text-align:center; background:var(--d-wash); border-radius:12px; }
-  .dash .d-stats strong { display:block; font:600 1.45rem/1.1 var(--d-serif); }
-  .dash .d-stats span { font-size:.72rem; letter-spacing:.05em; text-transform:uppercase; color:var(--d-soft); }
-  .dash .d-lista { list-style:none; margin:.6rem 0 0; padding:0; display:grid; gap:.3rem; max-height:480px; overflow:auto; }
-  .dash .d-lista button { width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; gap:.6rem; padding:.55rem .65rem; text-align:left; font:500 .9rem var(--d-sans); color:var(--d-ink); background:transparent; border:1px solid transparent; border-radius:10px; cursor:pointer; }
-  .dash .d-lista button:hover { background:var(--d-wash); border-color:var(--d-line); }
-  .dash .d-lista .d-n { padding:.1rem .55rem; font-size:.8rem; font-weight:700; color:#5a2fa3; background:#efe8fb; border-radius:999px; }
-
-  @media (prefers-reduced-motion:reduce) { .dash *, .dash *::before { animation:none !important; transition:none !important; } }
-</style>
+<link rel="stylesheet" href="{% static 'MisionaBio/css/dashboard.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -142,7 +14,6 @@
 
   <header class="d-head">
     <div>
-      <p class="d-eyebrow">Panel de control</p>
       <h1 class="d-title">Dashboard</h1>
       <p class="d-sub">
         <span class="d-live" aria-hidden="true"></span>
@@ -194,7 +65,7 @@
         <p class="d-kpi__sub">Avistamientos cargados desde ayer a esta hora</p>
       </article>
 
-      <article class="d-kpi" style="--i:3">
+      <article class="d-kpi d-kpi--alerta" style="--i:3">
         <div class="d-kpi__top">
           <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><path d="M8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2"/><path d="m9 14 2 2 4-4"/></svg></span>
           <span class="d-kpi__label">Por validar</span>
@@ -206,11 +77,12 @@
 
     <div class="d-grid">
 
-      <section class="d-panel d-span-8" aria-labelledby="h-mensual">
+      <!-- Fila 1: 7 + 5 columnas -->
+      <section class="d-panel d-span-7" aria-labelledby="h-mensual">
         <header class="d-panel__head">
           <div>
             <h2 id="h-mensual">Avistamientos por mes</h2>
-            <p class="d-hint">Según la fecha en que ocurrió cada avistamiento.</p>
+            <p class="d-hint">Según la fecha en que ocurrió. El mes con más registros va en dorado.</p>
           </div>
           <div class="d-seg" role="group" aria-label="Período del gráfico">
             <button type="button" data-meses="12" aria-pressed="true">12 meses</button>
@@ -218,23 +90,28 @@
             <button type="button" data-meses="36" aria-pressed="false">36 meses</button>
           </div>
         </header>
-        <div class="d-chart" id="chart-mensual" role="img" aria-label="Avistamientos por mes"></div>
+        <div class="d-chart-box d-chart-box--lg">
+          <div class="d-chart" id="chart-mensual" role="img" aria-label="Avistamientos por mes"></div>
+        </div>
       </section>
 
-      <section class="d-panel d-span-4" aria-labelledby="h-estado">
+      <section class="d-panel d-span-5 d-estado" aria-labelledby="h-estado">
         <header class="d-panel__head">
           <div>
             <h2 id="h-estado">Estado de validación</h2>
             <p class="d-hint">Qué parte de los registros ya fue revisada.</p>
           </div>
         </header>
-        <div class="d-donut">
-          <div class="d-chart" id="chart-estado" role="img" aria-label="Avistamientos según su estado de validación"></div>
-          <div class="d-donut__center"><strong id="estado-total">0</strong><span>avistamientos</span></div>
+        <div class="d-estado__body">
+          <div class="d-donut">
+            <div class="d-chart" id="chart-estado" role="img" aria-label="Avistamientos según su estado de validación"></div>
+            <div class="d-donut__center"><strong id="estado-total">0</strong><span>avistamientos</span></div>
+          </div>
+          <ul class="d-legend" id="legend-estado"></ul>
         </div>
-        <ul class="d-legend" id="legend-estado"></ul>
       </section>
 
+      <!-- Fila 2: 6 + 6 columnas; fila 3: barra colapsable a todo el ancho -->
       <section class="d-panel d-span-6" aria-labelledby="h-top">
         <header class="d-panel__head">
           <div>
@@ -242,40 +119,56 @@
             <p class="d-hint">Las 6 con más registros.</p>
           </div>
         </header>
-        <div class="d-chart" id="chart-top" role="img" aria-label="Especies más avistadas"></div>
+        <div class="d-chart-box">
+          <div class="d-chart" id="chart-top" role="img" aria-label="Especies más avistadas"></div>
+        </div>
       </section>
 
       <section class="d-panel d-span-6" aria-labelledby="h-clases">
         <header class="d-panel__head">
           <div>
             <h2 id="h-clases">Especies por clase</h2>
-            <p class="d-hint">Cuántas especies del catálogo hay en cada grupo.</p>
+            <p class="d-hint">Cuanto más grande el bloque, más especies tiene el grupo.</p>
           </div>
         </header>
-        <div class="d-chart" id="chart-clases" role="img" aria-label="Especies por clase taxonómica"></div>
+        <div class="d-chart-box">
+          <div class="d-chart" id="chart-clases" role="img" aria-label="Especies por clase taxonómica"></div>
+        </div>
       </section>
 
-      <section class="d-panel d-span-12" aria-labelledby="h-ultimos">
+      <section class="d-panel d-span-12 d-ultimos" aria-labelledby="h-ultimos">
         <header class="d-panel__head">
           <div>
             <h2 id="h-ultimos">Últimos registros cargados</h2>
             <p class="d-hint">Lo más reciente que entró al sistema.</p>
           </div>
-          <a class="d-link" href="{% url 'avistamientos:lista' %}">Ver todos →</a>
+          <div class="d-ultimos__actions">
+            <a class="d-link" href="{% url 'avistamientos:lista' %}">Ver todos</a>
+            <button type="button" class="d-btn" id="ultimos-toggle" aria-expanded="false" aria-controls="ultimos-body">
+              <span id="ultimos-toggle-txt">Mostrar lista</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
         </header>
-        <div class="d-table-wrap">
+        <div class="d-ultimos__body" id="ultimos-body" hidden>
           <table class="d-table">
             <thead>
-              <tr><th scope="col">Especie</th><th scope="col">Zona</th><th scope="col">Avistado</th><th scope="col">Estado</th><th scope="col">Cargado</th></tr>
+              <tr>
+                <th scope="col">Especie</th>
+                <th scope="col" class="d-col-extra">Zona</th>
+                <th scope="col" class="d-col-extra">Avistado</th>
+                <th scope="col">Estado</th>
+                <th scope="col" class="d-col-hace">Cargado</th>
+              </tr>
             </thead>
             <tbody>
               {% for r in ultimos %}
               <tr>
                 <td class="d-sp"><a href="{{ r.url }}">{{ r.especie }}</a>{% if r.cientifico %}<small>{{ r.cientifico }}</small>{% endif %}</td>
-                <td>{{ r.zona|default:"—" }}</td>
-                <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                <td class="d-col-extra">{{ r.zona|default:"—" }}</td>
+                <td class="d-col-extra">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td><span class="d-badge d-badge--{{ r.estado }}">{{ r.estado_nombre }}</span></td>
-                <td>hace {{ r.hace }}</td>
+                <td class="d-col-hace">hace {{ r.hace }}</td>
               </tr>
               {% empty %}
               <tr><td colspan="5" class="d-empty">Todavía no hay avistamientos cargados.</td></tr>
@@ -292,19 +185,21 @@
   <section id="panel-mapa" role="tabpanel" aria-labelledby="tab-mapa" hidden>
     <div class="d-mapa">
 
-      <div class="d-panel">
-        <div class="d-mapa__bar">
-          <div class="d-seg" role="group" aria-label="Cómo mostrar los avistamientos">
-            <button type="button" data-modo="celdas" aria-pressed="false">Celdas</button>
-            <button type="button" data-modo="puntos" aria-pressed="false">Puntos</button>
-            <button type="button" data-modo="ambos" aria-pressed="true">Ambos</button>
-          </div>
-          <label class="d-field">Especie
-            <select id="mapa-especie"><option value="">Todas</option></select>
-          </label>
-          <button type="button" class="d-btn" id="mapa-reset">Restablecer vista</button>
+      <!-- Barra de controles: una sola línea a todo el ancho -->
+      <div class="d-panel d-mapa__toolbar">
+        <div class="d-seg" role="group" aria-label="Cómo mostrar los avistamientos">
+          <button type="button" data-modo="celdas" aria-pressed="false">Celdas</button>
+          <button type="button" data-modo="puntos" aria-pressed="false">Puntos</button>
+          <button type="button" data-modo="ambos" aria-pressed="true">Ambos</button>
         </div>
+        <label class="d-field">Especie
+          <select id="mapa-especie"><option value="">Todas</option></select>
+        </label>
+        <button type="button" class="d-btn" id="mapa-reset">Restablecer vista</button>
+      </div>
 
+      <!-- Mapa: ocupa todo el alto disponible -->
+      <div class="d-panel d-mapa__main">
         <p class="d-aviso" id="mapa-aviso" role="status" hidden>
           <strong>Se muestran las ubicaciones sin el contorno de la provincia.</strong>
           No se pudo cargar el archivo del mapa. Para dibujarlo, ejecutá <code>python generar_geojson_misiones.py</code>
@@ -313,7 +208,7 @@
         </p>
 
         <div class="d-mapa__stage">
-          <div class="d-chart d-chart--mapa" id="mapa-chart" role="img" aria-label="Mapa de Misiones con los avistamientos"></div>
+          <div class="d-chart" id="mapa-chart" role="img" aria-label="Mapa de Misiones con los avistamientos"></div>
           <div class="d-mapa__vacio" id="mapa-vacio" hidden>No hay avistamientos con coordenadas para mostrar.</div>
         </div>
 
@@ -326,14 +221,19 @@
         </div>
       </div>
 
-      <aside class="d-panel" aria-labelledby="h-ubic">
-        <h2 id="h-ubic">Ubicaciones</h2>
-        <p class="d-hint">Tocá una para verla en el mapa.</p>
-        <div class="d-stats">
-          <div><strong id="mapa-stat-av">0</strong><span>Avistam.</span></div>
-          <div><strong id="mapa-stat-ub">0</strong><span>Lugares</span></div>
-          <div><strong id="mapa-stat-es">0</strong><span>Especies</span></div>
-        </div>
+      <!-- Ubicaciones: la lista usa varias columnas para aprovechar el ancho -->
+      <aside class="d-panel d-mapa__side" aria-labelledby="h-ubic">
+        <header class="d-panel__head">
+          <div>
+            <h2 id="h-ubic">Ubicaciones</h2>
+            <p class="d-hint">Tocá una para verla en el mapa.</p>
+          </div>
+          <div class="d-stats">
+            <div><strong id="mapa-stat-av">0</strong><span>Avistam.</span></div>
+            <div><strong id="mapa-stat-ub">0</strong><span>Lugares</span></div>
+            <div><strong id="mapa-stat-es">0</strong><span>Especies</span></div>
+          </div>
+        </header>
         <ul class="d-lista" id="mapa-lista"></ul>
       </aside>
 
@@ -374,6 +274,16 @@
     verde: "#12805a", verdeOscuro: "#0b5f43", dorado: "#c79a3e", doradoOscuro: "#a67c1f",   // verde y dorado oscuro validados con el script de dataviz
   };
   const ESTADO_COLOR = { PENDIENTE: "#fab219", VALIDADO: "#0ca30c", CORREGIDO: "#2a78d6" };
+  const degradado = (a, b, horizontal = false) => TIENE_ECHARTS
+    ? new echarts.graphic.LinearGradient(0, 0, horizontal ? 1 : 0, horizontal ? 0 : 1, [{ offset: 0, color: a }, { offset: 1, color: b }])
+    : a;
+  const GRAD_VERDE = () => degradado("#2fa36b", "#0b5f43");
+  const GRAD_DORADO = () => degradado("#f0c978", "#a67c1f");
+  // Colores de fondo del treemap con su color de texto (contraste verificado a ojo sobre cada fondo).
+  const CLASE_PALETA = [
+    { bg: "#0b5f43", fg: "#ffffff" }, { bg: "#e3bf72", fg: "#1b2a22" }, { bg: "#12805a", fg: "#ffffff" },
+    { bg: "#a67c1f", fg: "#ffffff" }, { bg: "#9ccfb2", fg: "#1b2a22" }, { bg: "#1f5a43", fg: "#ffffff" },
+  ];
   const RAMPA = ["#c9b3ee", "#ad8ae4", "#9166d6", "#7544c2", "#5a2fa3", "#42207d"];
   const FUENTE = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
   const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -453,6 +363,7 @@
       const serie = DATA.mensual.slice(-meses);
       const total = serie.reduce((a, p) => a + p.n, 0);
       el.setAttribute("aria-label", `Avistamientos por mes en los últimos ${meses} meses: ${nf.format(total)} en total.`);
+      const pico = Math.max(0, ...serie.map((p) => p.n));
       const etiquetas = serie.map((p, i) => (i === 0 || p.m === 1) ? `${MESES[p.m - 1]}\n${p.y}` : MESES[p.m - 1]);
       chart.setOption({
         ...ANIM,
@@ -460,7 +371,7 @@
         title: total === 0
           ? { text: "Sin avistamientos en este período", left: "center", top: "middle", textStyle: { color: COLOR.muted, fontSize: 13, fontWeight: 500, fontFamily: FUENTE } }
           : { show: false },
-        grid: { left: 6, right: 8, top: 26, bottom: 4, containLabel: true },
+        grid: { left: 4, right: 4, top: 28, bottom: 4, containLabel: true },
         tooltip: {
           ...TOOLTIP, trigger: "axis",
           axisPointer: { type: "shadow", shadowStyle: { color: "rgba(47,111,84,.08)" } },
@@ -476,9 +387,9 @@
         },
         yAxis: { type: "value", minInterval: 1, axisLabel: { color: COLOR.muted }, splitLine: { lineStyle: { color: COLOR.line } } },
         series: [{
-          type: "bar", data: serie.map((p) => p.n), barMaxWidth: 30,
-          itemStyle: { color: COLOR.verde, borderRadius: [5, 5, 0, 0] },
-          emphasis: { itemStyle: { color: COLOR.verdeOscuro } },
+          type: "bar", barWidth: "62%", barMaxWidth: 64,
+          data: serie.map((p) => ({ value: p.n, itemStyle: { color: (pico > 0 && p.n === pico) ? GRAD_DORADO() : GRAD_VERDE(), borderRadius: [8, 8, 0, 0] } })),
+          emphasis: { itemStyle: { opacity: 0.85 } },
           label: { show: meses <= 12, position: "top", color: COLOR.ink, fontSize: 11, formatter: (p) => (p.value ? nf.format(p.value) : "") },
           animationDelay: (i) => i * 35,
         }],
@@ -517,7 +428,13 @@
       const pct = document.createElement("span");
       pct.className = "d-legend__pct";
       pct.textContent = total ? `${Math.round((e.n / total) * 100)}%` : "0%";
-      li.append(chip, nombre, n, pct);
+      const barra = document.createElement("span");
+      barra.className = "d-legend__bar";
+      const rel = document.createElement("span");
+      rel.style.width = total ? `${(e.n / total) * 100}%` : "0%";
+      rel.style.background = chip.style.background;
+      barra.appendChild(rel);
+      li.append(chip, nombre, n, pct, barra);
       lista.appendChild(li);
     });
 
@@ -530,7 +447,7 @@
       textStyle: TEXTO,
       tooltip: { ...TOOLTIP, trigger: "item", formatter: (p) => `<strong>${esc(p.name)}</strong><br>${nf.format(p.value)} · ${p.percent}%` },
       series: [{
-        type: "pie", radius: ["62%", "86%"], center: ["50%", "50%"], avoidLabelOverlap: false,
+        type: "pie", radius: ["56%", "90%"], center: ["50%", "50%"], avoidLabelOverlap: false,
         label: { show: false }, labelLine: { show: false },
         itemStyle: { borderColor: COLOR.card, borderWidth: 3, borderRadius: 6 },
         emphasis: { scale: true, scaleSize: 5 },
@@ -539,30 +456,30 @@
     });
   }
 
+  // El gráfico ocupa todo el alto de su panel (lo da el CSS); las filas se reparten el espacio.
   function barrasHorizontales(id, filas, color, textoTooltip, vacioTexto) {
     const el = $(id);
     if (!filas.length) { mensaje(el, vacioTexto); return; }
-    el.style.height = `${Math.min(300, Math.max(150, filas.length * 46 + 24))}px`;   // sin aire de sobra con pocas filas
     const chart = crearGrafico(el);
     if (!chart) return;
     el.setAttribute("aria-label", filas.map((f) => `${cap(f.nombre)}: ${f.n}`).join(". "));
     chart.setOption({
       ...ANIM,
       textStyle: TEXTO,
-      grid: { left: 8, right: 40, top: 4, bottom: 4, containLabel: true },
+      grid: { left: 4, right: 14, top: 4, bottom: 4, containLabel: true },
       tooltip: { ...TOOLTIP, trigger: "axis", axisPointer: { type: "none" }, formatter: (ps) => textoTooltip(filas[ps[0].dataIndex]) },
       xAxis: { type: "value", show: false, max: (v) => Math.max(1, Math.ceil(v.max * 1.12)) },
       yAxis: {
         type: "category", inverse: true,
         // Los nombres largos se acortan acá; el nombre completo queda en el tooltip.
-        data: filas.map((f) => { const t = cap(f.nombre); return t.length > 24 ? `${t.slice(0, 23)}…` : t; }),
+        data: filas.map((f) => { const t = cap(f.nombre); return t.length > 30 ? `${t.slice(0, 29)}…` : t; }),
         axisTick: { show: false }, axisLine: { show: false },
         axisLabel: { color: COLOR.ink, margin: 12 },
       },
       series: [{
-        type: "bar", data: filas.map((f) => f.n), barWidth: 14,
-        itemStyle: { color, borderRadius: [0, 6, 6, 0] },
-        showBackground: true, backgroundStyle: { color: "rgba(18,39,30,.05)", borderRadius: 6 },
+        type: "bar", data: filas.map((f) => f.n), barWidth: "54%", barMaxWidth: 34,
+        itemStyle: { color, borderRadius: [0, 10, 10, 0] },
+        showBackground: true, backgroundStyle: { color: "rgba(18,39,30,.06)", borderRadius: 10 },
         label: { show: true, position: "right", color: COLOR.ink, fontWeight: 600, formatter: (p) => nf.format(p.value) },
         animationDelay: (i) => i * 60,
       }],
@@ -571,12 +488,33 @@
 
   seguro("mensual", () => mensual.iniciar());
   seguro("estados", dibujarEstados);
-  seguro("top", () => barrasHorizontales("#chart-top", DATA.top, COLOR.verde,
+  seguro("top", () => barrasHorizontales("#chart-top", DATA.top, degradado("#2fa36b", "#0b5f43", true),
     (f) => `<strong>${esc(cap(f.nombre))}</strong>${f.cientifico ? `<br><i style="opacity:.7">${esc(f.cientifico)}</i>` : ""}<br>${nf.format(f.n)} avistamiento${f.n === 1 ? "" : "s"}`,
     "Todavía no hay avistamientos con especie asignada."));
-  seguro("clases", () => barrasHorizontales("#chart-clases", DATA.clases, COLOR.doradoOscuro,
-    (f) => `<strong>${esc(cap(f.nombre))}</strong><br>${nf.format(f.n)} especie${f.n === 1 ? "" : "s"}`,
-    "Todavía no hay especies cargadas."));
+  seguro("clases", () => {
+    const el = $("#chart-clases"), filas = DATA.clases;
+    if (!filas.length) { mensaje(el, "Todavía no hay especies cargadas."); return; }
+    const chart = crearGrafico(el);
+    if (!chart) return;
+    const total = filas.reduce((a, f) => a + f.n, 0);
+    el.setAttribute("aria-label", "Especies por clase: " + filas.map((f) => `${cap(f.nombre)} ${f.n}`).join(", "));
+    chart.setOption({
+      ...ANIM,
+      textStyle: TEXTO,
+      tooltip: { ...TOOLTIP, trigger: "item", formatter: (p) => `<strong>${esc(cap(p.name))}</strong><br>${nf.format(p.value)} especie${p.value === 1 ? "" : "s"} · ${Math.round((p.value / total) * 100)}% del catálogo` },
+      series: [{
+        type: "treemap", left: 0, right: 0, top: 0, bottom: 0, roam: false, nodeClick: false, breadcrumb: { show: false },
+        itemStyle: { borderColor: COLOR.card, borderWidth: 4, gapWidth: 4, borderRadius: 10 },
+        label: {
+          show: true, position: "insideTopLeft", padding: [10, 12], overflow: "truncate", ellipsis: "…",
+          formatter: (p) => `{n|${cap(p.name)}}\n{v|${nf.format(p.value)}}`,
+          rich: { n: { fontSize: 14, fontWeight: 600, lineHeight: 20, fontFamily: FUENTE }, v: { fontSize: 30, fontWeight: 600, lineHeight: 38, fontFamily: 'Fraunces, Georgia, serif' } },
+        },
+        emphasis: { itemStyle: { opacity: 0.88 } },
+        data: filas.map((f, k) => { const c = CLASE_PALETA[k % CLASE_PALETA.length]; return { name: f.nombre, value: f.n, itemStyle: { color: c.bg }, label: { color: c.fg } }; }),
+      }],
+    });
+  });
 
   /* ---------------------------------------------------------------
      Mapa (se arma la primera vez que se abre la pestaña)
@@ -728,7 +666,7 @@
       const w = Math.abs(b[0] - a[0]), h = Math.abs(b[1] - a[1]);
       if (!w || !h) return;
       const geo = (st.chart.getOption().geo || [])[0] || {};
-      const zoom = (geo.zoom || 1) * Math.min((ancho - 30) / w, (alto - 30) / h);
+      const zoom = (geo.zoom || 1) * Math.min((ancho - 20) / w, (alto - 20) / h);
       st.chart.setOption({ geo: { zoom, center: [(x0 + x1) / 2, (y0 + y1) / 2] } });
     }
 
@@ -743,7 +681,7 @@
 
       const ul = $("#mapa-lista");
       ul.textContent = "";
-      g.puntos.slice(0, 14).forEach((p) => {
+      g.puntos.slice(0, 40).forEach((p) => {   // la lista hace scroll interno y llena el alto del panel
         const li = document.createElement("li");
         const b = document.createElement("button");
         b.type = "button";
@@ -856,6 +794,51 @@
     return { activar };
   })();
 
+  /* Ajuste a la ventana: ancho completo y alto = lo que queda de pantalla */
+  const dash = root;
+  function ajustar() {
+    // Ancho completo: se anula el contenedor del layout base
+    dash.style.marginLeft = "0px";
+    dash.style.width = "";
+    const izq = dash.getBoundingClientRect().left;
+    dash.style.marginLeft = `${-izq}px`;
+    dash.style.width = `${document.documentElement.clientWidth}px`;
+
+    // Alto: lo que queda de ventana. Se prueba con el modo ajustado y se revierte si no alcanza.
+    const grande = window.innerWidth >= 900 && !$("#panel-mapa").hidden;   // solo el Mapa se ajusta a la pantalla; el Resumen crece hacia abajo
+    document.body.classList.toggle("dash-fit", grande);
+    dash.classList.toggle("is-fit", grande);
+    dash.style.height = "";
+    let ok = false;
+    if (grande) {
+      window.scrollTo(0, 0);
+      const top = dash.getBoundingClientRect().top;
+      const alto = window.innerHeight - top - 10;
+      if (alto >= 400) { dash.style.height = `${alto}px`; ok = true; }
+    }
+    if (!ok) {
+      document.body.classList.remove("dash-fit");
+      dash.classList.remove("is-fit");
+    }
+    charts.forEach((c) => c.resize());
+  }
+  window.addEventListener("resize", ajustar);
+  window.addEventListener("load", ajustar);
+  ajustar();
+
+  /* Lista de últimos registros: cerrada por defecto; al abrir crece hacia abajo y los gráficos se achican */
+  (() => {
+    const btn = $("#ultimos-toggle"), body = $("#ultimos-body"), txt = $("#ultimos-toggle-txt");
+    if (!btn || !body) return;
+    btn.addEventListener("click", () => {
+      const abrir = btn.getAttribute("aria-expanded") !== "true";
+      btn.setAttribute("aria-expanded", String(abrir));
+      body.hidden = !abrir;
+      txt.textContent = abrir ? "Ocultar lista" : "Mostrar lista";
+      requestAnimationFrame(() => charts.forEach((c) => c.resize()));
+    });
+  })();
+
   /* ---------------------------------------------------------------
      Pestañas Resumen / Mapa
   --------------------------------------------------------------- */
@@ -870,6 +853,7 @@
     $$('[role="tabpanel"]').forEach((p) => { p.hidden = p.id !== `panel-${nombre}`; });
     if (hash) history.replaceState(null, "", nombre === "mapa" ? "#mapa" : location.pathname + location.search);
     requestAnimationFrame(() => {
+      ajustar();
       if (nombre === "mapa") mapa.activar(); else charts.forEach((c) => c.resize());
     });
   }

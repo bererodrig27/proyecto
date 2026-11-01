@@ -35,7 +35,7 @@
           <a href="{% url 'dashboard' %}"{% if request.resolver_match.url_name == 'dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
         {% endif %}
                   {% if user.es_administrador %}
-            <a href="{% url 'registro_admin' %}"{% if request.resolver_match.url_name == 'registro_admin' %} aria-current="page"{% endif %}>  administradores</a>
+            <a href="{% url 'registro_admin' %}"{% if request.resolver_match.url_name == 'registro_admin' %} aria-current="page"{% endif %}>  Administradores</a>
           {% endif %}
       </nav>
 

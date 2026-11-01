@@ -547,6 +547,16 @@ class Registro(models.Model):
         return self.ubicacion.zona if self.ubicacion_id else ''
 
     @property
+    def lugar(self):
+        """Nombre del lugar del avistamiento (ej. 'Parque Nacional Iguazú')."""
+        return self.ubicacion.nombre_lugar if self.ubicacion_id else ''
+
+    @property
+    def departamento(self):
+        """Departamento de Misiones donde cae el lugar ('' si no se pudo determinar)."""
+        return self.ubicacion.departamento if self.ubicacion_id else ''
+
+    @property
     def latitud(self):
         return self.ubicacion.latitud if self.ubicacion_id else None
 
@@ -762,4 +772,3 @@ class Auditoria(models.Model):
 
     def __str__(self):
         return f'{self.operacion} en {self.tabla_afectada} #{self.id_registro_afectado}'
-    
