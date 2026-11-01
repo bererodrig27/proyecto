@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.utils import timezone
 
 from .models import (
     Especie,
@@ -102,6 +105,10 @@ class EspecieFiltroForm(forms.Form):
 # Avistamientos (modelo Registro)
 # =============================================================================
 
+# Antigüedad máxima (en días) de la fecha de un avistamiento cargado manualmente: ~2 meses.
+MAX_DIAS_ATRAS_MANUAL = 60
+
+
 class AvistamientoForm(forms.ModelForm):
     """
     Carga/edición manual de un avistamiento (solo Administrador).
@@ -145,9 +152,10 @@ class AvistamientoForm(forms.ModelForm):
         label='Lugar', max_length=200, required=False,
         widget=forms.TextInput(attrs={'placeholder': 'Ej. Parque Nacional Iguazú'}),
     )
-    lugar_zona = forms.CharField(
-        label='Zona', max_length=100, required=False,
-        widget=forms.TextInput(attrs={'placeholder': 'Ej. Selva paranaense'}),
+    lugar_departamento = forms.ChoiceField(
+        label='Departamento', required=False,
+        choices=[('', 'Sin determinar')] + list(Ubicacion.Departamento.choices),
+        help_text='Departamento de Misiones donde ocurrió el avistamiento.',
     )
     lugar_latitud = forms.FloatField(
         label='Latitud', required=False, min_value=-90, max_value=90,
@@ -199,7 +207,7 @@ class AvistamientoForm(forms.ModelForm):
         'especie', 'fecha_avistamiento', 'tipo_registro', 'estado_calidad',
         'observaciones',
         'noticia_url', 'noticia_titulo', 'noticia_fuente', 'noticia_fecha_publicacion',
-        'lugar_nombre', 'lugar_zona', 'lugar_latitud', 'lugar_longitud', 'lugar_precision',
+        'lugar_nombre', 'lugar_departamento', 'lugar_latitud', 'lugar_longitud', 'lugar_precision',
         'fragmento_origen',
     ]
 
@@ -217,6 +225,18 @@ class AvistamientoForm(forms.ModelForm):
             self.initial.setdefault('estado_calidad', Registro.EstadoCalidad.VALIDADO)
 
         self.es_manual = self.instance.origen_registro == Registro.OrigenRegistro.MANUAL
+
+        # Cargas manuales: la fecha solo puede ser de los últimos 2 meses. El min/max
+        # del selector es una ayuda visual; la regla real se valida en el servidor.
+        if self.es_manual:
+            hoy = timezone.localdate()
+            campo_fecha = self.fields['fecha_avistamiento']
+            campo_fecha.widget.attrs['max'] = hoy.isoformat()
+            campo_fecha.widget.attrs['min'] = (hoy - timedelta(days=MAX_DIAS_ATRAS_MANUAL)).isoformat()
+            campo_fecha.help_text = (
+                'Solo se aceptan fechas de los últimos 2 meses. '
+                'Dejala vacía si no se conoce con precisión.'
+            )
 
         # En un registro de scraping la noticia sigue siendo obligatoria.
         if not self.es_manual:
@@ -237,10 +257,34 @@ class AvistamientoForm(forms.ModelForm):
             ubicacion = self.instance.ubicacion
             if ubicacion:
                 self.initial.setdefault('lugar_nombre', ubicacion.nombre_lugar)
-                self.initial.setdefault('lugar_zona', ubicacion.zona)
+                self.initial.setdefault('lugar_departamento', ubicacion.departamento)
                 self.initial.setdefault('lugar_latitud', ubicacion.latitud)
                 self.initial.setdefault('lugar_longitud', ubicacion.longitud)
                 self.initial.setdefault('lugar_precision', ubicacion.precision)
+
+    def clean_fecha_avistamiento(self):
+        """
+        En cargas manuales no se aceptan fechas futuras ni anteriores a ~2 meses.
+        La regla no se aplica a los registros de scraping (vienen de noticias que
+        pueden ser antiguas) ni cuando se edita un registro sin cambiar la fecha,
+        para no impedir corregir otros datos de registros viejos.
+        """
+        fecha = self.cleaned_data.get('fecha_avistamiento')
+        if not fecha or not self.es_manual:
+            return fecha
+        if self.instance.pk and fecha == self.instance.fecha_avistamiento:
+            return fecha
+
+        hoy = timezone.localdate()
+        limite = hoy - timedelta(days=MAX_DIAS_ATRAS_MANUAL)
+        if fecha > hoy:
+            raise forms.ValidationError('La fecha del avistamiento no puede ser futura.')
+        if fecha < limite:
+            raise forms.ValidationError(
+                f'Solo se pueden cargar avistamientos de los últimos 2 meses '
+                f'(desde el {limite:%d/%m/%Y}).'
+            )
+        return fecha
 
     def clean(self):
         cleaned = super().clean()
@@ -256,7 +300,7 @@ class AvistamientoForm(forms.ModelForm):
 
         # La ubicación es opcional, pero si se carga algo tiene que quedar completa.
         lat, lon = cleaned.get('lugar_latitud'), cleaned.get('lugar_longitud')
-        if any([cleaned.get('lugar_nombre'), cleaned.get('lugar_zona'), lat is not None, lon is not None]):
+        if any([cleaned.get('lugar_nombre'), cleaned.get('lugar_departamento'), lat is not None, lon is not None]):
             if not cleaned.get('lugar_nombre') and 'lugar_nombre' not in self.errors:
                 self.add_error('lugar_nombre', 'Indicá el lugar.')
             if lat is None and 'lugar_latitud' not in self.errors:
@@ -306,9 +350,12 @@ class AvistamientoForm(forms.ModelForm):
         # clean() garantiza que o está todo vacío o todo completo.
         if not cd.get('lugar_nombre'):
             return None
+        nombre = _limpiar_espacios(cd['lugar_nombre'])
         datos = {
-            'nombre_lugar': _limpiar_espacios(cd['lugar_nombre']),
-            'zona': _limpiar_espacios(cd.get('lugar_zona')),
+            'nombre_lugar': nombre,
+            # "zona" se conserva por compatibilidad (mapa, dashboard, admin) y replica al lugar.
+            'zona': nombre[:100],
+            'departamento': cd.get('lugar_departamento') or '',
             'latitud': cd['lugar_latitud'],
             'longitud': cd['lugar_longitud'],
             'precision': cd.get('lugar_precision') or Ubicacion.Precision.APROXIMADA,

@@ -136,9 +136,13 @@
       </div>
 
       <div>
-        <dt>Cargado el</dt>
+        <dt>Extraído el</dt>
         <dd>
-          {{ registro.fecha_carga|date:"d/m/Y H:i" }}
+          {% if registro.noticia.fecha_scraping %}
+            {{ registro.noticia.fecha_scraping|date:"d/m/Y H:i" }}
+          {% else %}
+            —
+          {% endif %}
         </dd>
       </div>
 

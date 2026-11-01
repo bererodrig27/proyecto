@@ -164,12 +164,13 @@
               </td>
 
               <td class="zona-cell">
-                {% if r.fragmento_origen %}
-                  <span class="frag" title="{{ r.fragmento_origen }}">
-                    “{{ r.fragmento_origen|truncatechars:110 }}”
-                  </span>
+                {% if r.ubicacion %}
+                  {{ r.ubicacion.nombre_lugar|default:r.zona|default:"—" }}
+                  {% if r.zona and r.zona != r.ubicacion.nombre_lugar %}
+                    <span class="sub">{{ r.zona }}</span>
+                  {% endif %}
                 {% else %}
-                  {{ r.zona|default:"—" }}
+                  —
                 {% endif %}
               </td>
 

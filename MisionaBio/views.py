@@ -225,7 +225,14 @@ def _registros_mapa():
         for lon, lat, zona, fecha, comun, cientifico in filas
     ]
 
+def _hace(fecha):
+    if fecha is None:
+        return ''
 
+    if (timezone.now() - fecha).total_seconds() < 60:
+        return 'menos de un minuto'
+
+    return timesince(fecha, depth=1)
 def _ultimos_cargados(limite=6):
     registros = (
     Registro.objects
@@ -243,11 +250,7 @@ def _ultimos_cargados(limite=6):
             'fecha': r.fecha_avistamiento,
             'estado': r.estado_calidad,
             'estado_nombre': r.get_estado_calidad_display(),
-            'hace': (
-                'menos de un minuto'
-                if (timezone.now() - r.noticia.fecha_scraping).total_seconds() < 60
-                else timesince(r.noticia.fecha_scraping, depth=1)
-            ),
+            'hace': _hace(r.noticia.fecha_scraping if r.noticia else None),
         })
     return filas
 
@@ -422,7 +425,12 @@ def avistamiento_lista(request):
     if cd.get('estado'):
         registros = registros.filter(estado_calidad=cd['estado'])
     if cd.get('zona'):
-        registros = registros.filter(ubicacion__zona__icontains=cd['zona'].strip())
+        z = cd['zona'].strip()
+        registros = registros.filter(
+            Q(ubicacion__nombre_lugar__icontains=z)
+            | Q(ubicacion__zona__icontains=z)
+            | Q(ubicacion__departamento__icontains=z)
+        )
     if cd.get('desde'):
         registros = registros.filter(fecha_avistamiento__gte=cd['desde'])
     if cd.get('hasta'):

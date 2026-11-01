@@ -13,7 +13,7 @@
      data-geojson="{% static 'MisionaBio/geo/misiones.geojson' %}">
 
   <header class="d-head">
-    <div class="d-head__left">
+    <div>
       <h1 class="d-title">Dashboard</h1>
       <p class="d-sub">
         <span class="d-live" aria-hidden="true"></span>
@@ -34,55 +34,55 @@
   </header>
 
   <!-- ============================ RESUMEN ============================ -->
-  <section id="panel-resumen" class="d-view" role="tabpanel" aria-labelledby="tab-resumen">
+  <section id="panel-resumen" role="tabpanel" aria-labelledby="tab-resumen">
 
     <div class="d-kpis">
       <article class="d-kpi d-kpi--feature" style="--i:0">
         <svg class="d-kpi__mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z"/></svg>
-        <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z"/><path d="M6 18C9 13 13 9 18 6"/></svg></span>
-        <div class="d-kpi__value" data-kpi="especies" data-count="{{ kpis.especies }}">{{ kpis.especies }}</div>
-        <div class="d-kpi__text">
+        <div class="d-kpi__top">
+          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 20C4 12 9 5 20 4C19 15 12 20 4 20Z"/><path d="M6 18C9 13 13 9 18 6"/></svg></span>
           <span class="d-kpi__label">Especies</span>
-          <p class="d-kpi__sub"><strong data-kpi="especies_con_avistamientos" data-count="{{ kpis.especies_con_avistamientos }}">{{ kpis.especies_con_avistamientos }}</strong> con avistamientos</p>
         </div>
+        <div class="d-kpi__value" data-kpi="especies" data-count="{{ kpis.especies }}">{{ kpis.especies }}</div>
+        <p class="d-kpi__sub"><strong data-kpi="especies_con_avistamientos" data-count="{{ kpis.especies_con_avistamientos }}">{{ kpis.especies_con_avistamientos }}</strong> con avistamientos</p>
       </article>
 
       <article class="d-kpi" style="--i:1">
-        <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span>
-        <div class="d-kpi__value" data-kpi="avistamientos" data-count="{{ kpis.avistamientos }}">{{ kpis.avistamientos }}</div>
-        <div class="d-kpi__text">
+        <div class="d-kpi__top">
+          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span>
           <span class="d-kpi__label">Avistamientos</span>
-          <p class="d-kpi__sub">En toda la provincia</p>
         </div>
+        <div class="d-kpi__value" data-kpi="avistamientos" data-count="{{ kpis.avistamientos }}">{{ kpis.avistamientos }}</div>
+        <p class="d-kpi__sub">Registrados en toda la provincia</p>
       </article>
 
       <article class="d-kpi" style="--i:2">
-        <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-        <div class="d-kpi__value" data-kpi="ultimas_24h" data-count="{{ kpis.ultimas_24h }}">{{ kpis.ultimas_24h }}</div>
-        <div class="d-kpi__text">
+        <div class="d-kpi__top">
+          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
           <span class="d-kpi__label">Últimas 24 hs <span class="d-kpi__dot" aria-hidden="true"></span></span>
-          <p class="d-kpi__sub">Desde ayer a esta hora</p>
         </div>
+        <div class="d-kpi__value" data-kpi="ultimas_24h" data-count="{{ kpis.ultimas_24h }}">{{ kpis.ultimas_24h }}</div>
+        <p class="d-kpi__sub">Avistamientos cargados desde ayer a esta hora</p>
       </article>
 
-      <article class="d-kpi" style="--i:3">
-        <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><path d="M8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2"/><path d="m9 14 2 2 4-4"/></svg></span>
-        <div class="d-kpi__value" data-kpi="pendientes" data-count="{{ kpis.pendientes }}">{{ kpis.pendientes }}</div>
-        <div class="d-kpi__text">
+      <article class="d-kpi d-kpi--alerta" style="--i:3">
+        <div class="d-kpi__top">
+          <span class="d-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><path d="M8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2"/><path d="m9 14 2 2 4-4"/></svg></span>
           <span class="d-kpi__label">Por validar</span>
-          <p class="d-kpi__sub">Esperan revisión</p>
         </div>
+        <div class="d-kpi__value" data-kpi="pendientes" data-count="{{ kpis.pendientes }}">{{ kpis.pendientes }}</div>
+        <p class="d-kpi__sub">Esperan la revisión de un administrador</p>
       </article>
     </div>
 
     <div class="d-grid">
 
-      <!-- Fila 1 -->
-      <section class="d-panel d-span-8" aria-labelledby="h-mensual">
+      <!-- Fila 1: 7 + 5 columnas -->
+      <section class="d-panel d-span-7" aria-labelledby="h-mensual">
         <header class="d-panel__head">
           <div>
             <h2 id="h-mensual">Avistamientos por mes</h2>
-            <p class="d-hint">Según la fecha en que ocurrió cada avistamiento.</p>
+            <p class="d-hint">Según la fecha en que ocurrió. El mes con más registros va en dorado.</p>
           </div>
           <div class="d-seg" role="group" aria-label="Período del gráfico">
             <button type="button" data-meses="12" aria-pressed="true">12 meses</button>
@@ -90,19 +90,19 @@
             <button type="button" data-meses="36" aria-pressed="false">36 meses</button>
           </div>
         </header>
-        <div class="d-chart-box">
+        <div class="d-chart-box d-chart-box--lg">
           <div class="d-chart" id="chart-mensual" role="img" aria-label="Avistamientos por mes"></div>
         </div>
       </section>
 
-      <section class="d-panel d-span-4" aria-labelledby="h-estado">
+      <section class="d-panel d-span-5 d-estado" aria-labelledby="h-estado">
         <header class="d-panel__head">
           <div>
             <h2 id="h-estado">Estado de validación</h2>
             <p class="d-hint">Qué parte de los registros ya fue revisada.</p>
           </div>
         </header>
-        <div class="d-estado">
+        <div class="d-estado__body">
           <div class="d-donut">
             <div class="d-chart" id="chart-estado" role="img" aria-label="Avistamientos según su estado de validación"></div>
             <div class="d-donut__center"><strong id="estado-total">0</strong><span>avistamientos</span></div>
@@ -111,8 +111,8 @@
         </div>
       </section>
 
-      <!-- Fila 2 -->
-      <section class="d-panel d-span-4" aria-labelledby="h-top">
+      <!-- Fila 2: 6 + 6 columnas; fila 3: barra colapsable a todo el ancho -->
+      <section class="d-panel d-span-6" aria-labelledby="h-top">
         <header class="d-panel__head">
           <div>
             <h2 id="h-top">Especies más avistadas</h2>
@@ -124,11 +124,11 @@
         </div>
       </section>
 
-      <section class="d-panel d-span-3" aria-labelledby="h-clases">
+      <section class="d-panel d-span-6" aria-labelledby="h-clases">
         <header class="d-panel__head">
           <div>
             <h2 id="h-clases">Especies por clase</h2>
-            <p class="d-hint">Especies del catálogo por grupo.</p>
+            <p class="d-hint">Cuanto más grande el bloque, más especies tiene el grupo.</p>
           </div>
         </header>
         <div class="d-chart-box">
@@ -136,29 +136,42 @@
         </div>
       </section>
 
-      <section class="d-panel d-span-5" aria-labelledby="h-ultimos">
+      <section class="d-panel d-span-12 d-ultimos" aria-labelledby="h-ultimos">
         <header class="d-panel__head">
           <div>
             <h2 id="h-ultimos">Últimos registros cargados</h2>
             <p class="d-hint">Lo más reciente que entró al sistema.</p>
           </div>
-          <a class="d-link" href="{% url 'avistamientos:lista' %}">Ver todos →</a>
+          <div class="d-ultimos__actions">
+            <a class="d-link" href="{% url 'avistamientos:lista' %}">Ver todos</a>
+            <button type="button" class="d-btn" id="ultimos-toggle" aria-expanded="false" aria-controls="ultimos-body">
+              <span id="ultimos-toggle-txt">Mostrar lista</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
         </header>
-        <div class="d-table-wrap">
+        <div class="d-ultimos__body" id="ultimos-body" hidden>
           <table class="d-table">
             <thead>
-              <tr><th scope="col">Especie</th><th scope="col">Zona</th><th scope="col">Estado</th><th scope="col">Cargado</th></tr>
+              <tr>
+                <th scope="col">Especie</th>
+                <th scope="col" class="d-col-extra">Zona</th>
+                <th scope="col" class="d-col-extra">Avistado</th>
+                <th scope="col">Estado</th>
+                <th scope="col" class="d-col-hace">Cargado</th>
+              </tr>
             </thead>
             <tbody>
               {% for r in ultimos %}
               <tr>
                 <td class="d-sp"><a href="{{ r.url }}">{{ r.especie }}</a>{% if r.cientifico %}<small>{{ r.cientifico }}</small>{% endif %}</td>
-                <td class="d-zona" title="{{ r.zona|default:'' }}">{{ r.zona|default:"—" }}</td>
+                <td class="d-col-extra">{{ r.zona|default:"—" }}</td>
+                <td class="d-col-extra">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td><span class="d-badge d-badge--{{ r.estado }}">{{ r.estado_nombre }}</span></td>
-                <td class="d-when">hace {{ r.hace }}</td>
+                <td class="d-col-hace">hace {{ r.hace }}</td>
               </tr>
               {% empty %}
-              <tr><td colspan="4" class="d-empty">Todavía no hay avistamientos cargados.</td></tr>
+              <tr><td colspan="5" class="d-empty">Todavía no hay avistamientos cargados.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -169,22 +182,24 @@
   </section>
 
   <!-- ============================== MAPA ============================== -->
-  <section id="panel-mapa" class="d-view" role="tabpanel" aria-labelledby="tab-mapa" hidden>
+  <section id="panel-mapa" role="tabpanel" aria-labelledby="tab-mapa" hidden>
     <div class="d-mapa">
 
-      <div class="d-panel">
-        <div class="d-mapa__bar">
-          <div class="d-seg" role="group" aria-label="Cómo mostrar los avistamientos">
-            <button type="button" data-modo="celdas" aria-pressed="false">Celdas</button>
-            <button type="button" data-modo="puntos" aria-pressed="false">Puntos</button>
-            <button type="button" data-modo="ambos" aria-pressed="true">Ambos</button>
-          </div>
-          <label class="d-field">Especie
-            <select id="mapa-especie"><option value="">Todas</option></select>
-          </label>
-          <button type="button" class="d-btn" id="mapa-reset">Restablecer vista</button>
+      <!-- Barra de controles: una sola línea a todo el ancho -->
+      <div class="d-panel d-mapa__toolbar">
+        <div class="d-seg" role="group" aria-label="Cómo mostrar los avistamientos">
+          <button type="button" data-modo="celdas" aria-pressed="false">Celdas</button>
+          <button type="button" data-modo="puntos" aria-pressed="false">Puntos</button>
+          <button type="button" data-modo="ambos" aria-pressed="true">Ambos</button>
         </div>
+        <label class="d-field">Especie
+          <select id="mapa-especie"><option value="">Todas</option></select>
+        </label>
+        <button type="button" class="d-btn" id="mapa-reset">Restablecer vista</button>
+      </div>
 
+      <!-- Mapa: ocupa todo el alto disponible -->
+      <div class="d-panel d-mapa__main">
         <p class="d-aviso" id="mapa-aviso" role="status" hidden>
           <strong>Se muestran las ubicaciones sin el contorno de la provincia.</strong>
           No se pudo cargar el archivo del mapa. Para dibujarlo, ejecutá <code>python generar_geojson_misiones.py</code>
@@ -206,14 +221,19 @@
         </div>
       </div>
 
-      <aside class="d-panel" aria-labelledby="h-ubic">
-        <h2 id="h-ubic">Ubicaciones</h2>
-        <p class="d-hint">Tocá una para verla en el mapa.</p>
-        <div class="d-stats">
-          <div><strong id="mapa-stat-av">0</strong><span>Avistam.</span></div>
-          <div><strong id="mapa-stat-ub">0</strong><span>Lugares</span></div>
-          <div><strong id="mapa-stat-es">0</strong><span>Especies</span></div>
-        </div>
+      <!-- Ubicaciones: la lista usa varias columnas para aprovechar el ancho -->
+      <aside class="d-panel d-mapa__side" aria-labelledby="h-ubic">
+        <header class="d-panel__head">
+          <div>
+            <h2 id="h-ubic">Ubicaciones</h2>
+            <p class="d-hint">Tocá una para verla en el mapa.</p>
+          </div>
+          <div class="d-stats">
+            <div><strong id="mapa-stat-av">0</strong><span>Avistam.</span></div>
+            <div><strong id="mapa-stat-ub">0</strong><span>Lugares</span></div>
+            <div><strong id="mapa-stat-es">0</strong><span>Especies</span></div>
+          </div>
+        </header>
         <ul class="d-lista" id="mapa-lista"></ul>
       </aside>
 
@@ -241,6 +261,7 @@
   const TIENE_ECHARTS = typeof window.echarts !== "undefined";
   const nf = new Intl.NumberFormat("es-AR");
 
+  // Los textos vienen de scraping y de usuarios: se escapan antes de armar HTML.
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
   ));
@@ -248,32 +269,21 @@
   const fechaAR = (iso) => { const [y, m, d] = String(iso).split("-"); return y && m && d ? `${d}/${m}/${y}` : iso; };
   const seguro = (nombre, fn) => { try { fn(); } catch (err) { console.error(`[dashboard] ${nombre}:`, err); } };
 
-  /* ---------- Altura: el dashboard ocupa justo lo que se ve de la pantalla ---------- */
-  const mqApilado = window.matchMedia("(max-width: 960px)");
-  const ALTO_MIN = 440;
-  function ajustarAltura() {
-    if (mqApilado.matches) { root.style.removeProperty("--d-h"); return; }
-    const arriba = root.getBoundingClientRect().top + window.scrollY;
-    let h = Math.floor(window.innerHeight - arriba - 8);
-    root.style.setProperty("--d-h", `${Math.max(ALTO_MIN, h)}px`);
-    // Si la página todavía scrollea (paddings o márgenes de base.html), se descuenta lo que sobra
-    for (let i = 0; i < 2; i++) {
-      const sobra = document.documentElement.scrollHeight - window.innerHeight;
-      if (sobra <= 0) break;
-      h -= sobra;
-      root.style.setProperty("--d-h", `${Math.max(ALTO_MIN, h)}px`);
-    }
-  }
-  ajustarAltura();
-  window.addEventListener("resize", ajustarAltura);
-  window.addEventListener("load", ajustarAltura);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustarAltura);
-
   const COLOR = {
     ink: "#1b2a22", soft: "#55645b", muted: "#7d887f", card: "#fffefa", line: "#e6e0d0",
-    verde: "#12805a", verdeOscuro: "#0b5f43", dorado: "#c79a3e", doradoOscuro: "#a67c1f",
+    verde: "#12805a", verdeOscuro: "#0b5f43", dorado: "#c79a3e", doradoOscuro: "#a67c1f",   // verde y dorado oscuro validados con el script de dataviz
   };
   const ESTADO_COLOR = { PENDIENTE: "#fab219", VALIDADO: "#0ca30c", CORREGIDO: "#2a78d6" };
+  const degradado = (a, b, horizontal = false) => TIENE_ECHARTS
+    ? new echarts.graphic.LinearGradient(0, 0, horizontal ? 1 : 0, horizontal ? 0 : 1, [{ offset: 0, color: a }, { offset: 1, color: b }])
+    : a;
+  const GRAD_VERDE = () => degradado("#2fa36b", "#0b5f43");
+  const GRAD_DORADO = () => degradado("#f0c978", "#a67c1f");
+  // Colores de fondo del treemap con su color de texto (contraste verificado a ojo sobre cada fondo).
+  const CLASE_PALETA = [
+    { bg: "#0b5f43", fg: "#ffffff" }, { bg: "#e3bf72", fg: "#1b2a22" }, { bg: "#12805a", fg: "#ffffff" },
+    { bg: "#a67c1f", fg: "#ffffff" }, { bg: "#9ccfb2", fg: "#1b2a22" }, { bg: "#1f5a43", fg: "#ffffff" },
+  ];
   const RAMPA = ["#c9b3ee", "#ad8ae4", "#9166d6", "#7544c2", "#5a2fa3", "#42207d"];
   const FUENTE = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
   const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -290,7 +300,7 @@
   const charts = [];
   function crearGrafico(el) {
     if (!el) return null;
-    if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos."); return null; }
+    if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos. Revisá tu conexión a internet."); return null; }
     const chart = echarts.init(el, null, { renderer: "canvas" });
     charts.push(chart);
     new ResizeObserver(() => chart.resize()).observe(el);
@@ -304,6 +314,9 @@
     el.appendChild(d);
   }
 
+  /* ---------------------------------------------------------------
+     Números animados y actualización en vivo
+  --------------------------------------------------------------- */
   function contar(el, hasta, animar = true) {
     const desde = Number(el.dataset.shown || 0);
     el.dataset.count = String(hasta);
@@ -333,11 +346,14 @@
       });
       const hora = $("#dash-actualizado");
       if (hora && k.actualizado) hora.textContent = k.actualizado;
-    } catch (_) {}
+    } catch (_) { /* sin conexión: se reintenta en el próximo ciclo */ }
   }
   setInterval(refrescar, 60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refrescar(); });
 
+  /* ---------------------------------------------------------------
+     Gráficos del resumen
+  --------------------------------------------------------------- */
   const mensual = (() => {
     const el = $("#chart-mensual");
     let chart = null, meses = 12;
@@ -347,6 +363,7 @@
       const serie = DATA.mensual.slice(-meses);
       const total = serie.reduce((a, p) => a + p.n, 0);
       el.setAttribute("aria-label", `Avistamientos por mes en los últimos ${meses} meses: ${nf.format(total)} en total.`);
+      const pico = Math.max(0, ...serie.map((p) => p.n));
       const etiquetas = serie.map((p, i) => (i === 0 || p.m === 1) ? `${MESES[p.m - 1]}\n${p.y}` : MESES[p.m - 1]);
       chart.setOption({
         ...ANIM,
@@ -354,7 +371,7 @@
         title: total === 0
           ? { text: "Sin avistamientos en este período", left: "center", top: "middle", textStyle: { color: COLOR.muted, fontSize: 13, fontWeight: 500, fontFamily: FUENTE } }
           : { show: false },
-        grid: { left: 6, right: 8, top: 18, bottom: 4, containLabel: true },
+        grid: { left: 4, right: 4, top: 28, bottom: 4, containLabel: true },
         tooltip: {
           ...TOOLTIP, trigger: "axis",
           axisPointer: { type: "shadow", shadowStyle: { color: "rgba(47,111,84,.08)" } },
@@ -366,14 +383,14 @@
         xAxis: {
           type: "category", data: etiquetas, axisTick: { show: false },
           axisLine: { lineStyle: { color: COLOR.line } },
-          axisLabel: { color: COLOR.muted, interval: meses <= 12 ? 0 : "auto", lineHeight: 14 },
+          axisLabel: { color: COLOR.muted, interval: meses <= 12 ? 0 : "auto", lineHeight: 15 },
         },
         yAxis: { type: "value", minInterval: 1, axisLabel: { color: COLOR.muted }, splitLine: { lineStyle: { color: COLOR.line } } },
         series: [{
-          type: "bar", data: serie.map((p) => p.n), barMaxWidth: 24,
-          itemStyle: { color: COLOR.verde, borderRadius: [4, 4, 0, 0] },
-          emphasis: { itemStyle: { color: COLOR.verdeOscuro } },
-          label: { show: meses <= 12, position: "top", color: COLOR.ink, fontSize: 10, formatter: (p) => (p.value ? nf.format(p.value) : "") },
+          type: "bar", barWidth: "62%", barMaxWidth: 64,
+          data: serie.map((p) => ({ value: p.n, itemStyle: { color: (pico > 0 && p.n === pico) ? GRAD_DORADO() : GRAD_VERDE(), borderRadius: [8, 8, 0, 0] } })),
+          emphasis: { itemStyle: { opacity: 0.85 } },
+          label: { show: meses <= 12, position: "top", color: COLOR.ink, fontSize: 11, formatter: (p) => (p.value ? nf.format(p.value) : "") },
           animationDelay: (i) => i * 35,
         }],
       }, true);
@@ -411,7 +428,13 @@
       const pct = document.createElement("span");
       pct.className = "d-legend__pct";
       pct.textContent = total ? `${Math.round((e.n / total) * 100)}%` : "0%";
-      li.append(chip, nombre, n, pct);
+      const barra = document.createElement("span");
+      barra.className = "d-legend__bar";
+      const rel = document.createElement("span");
+      rel.style.width = total ? `${(e.n / total) * 100}%` : "0%";
+      rel.style.background = chip.style.background;
+      barra.appendChild(rel);
+      li.append(chip, nombre, n, pct, barra);
       lista.appendChild(li);
     });
 
@@ -424,7 +447,7 @@
       textStyle: TEXTO,
       tooltip: { ...TOOLTIP, trigger: "item", formatter: (p) => `<strong>${esc(p.name)}</strong><br>${nf.format(p.value)} · ${p.percent}%` },
       series: [{
-        type: "pie", radius: ["58%", "82%"], center: ["50%", "50%"], avoidLabelOverlap: false,
+        type: "pie", radius: ["56%", "90%"], center: ["50%", "50%"], avoidLabelOverlap: false,
         label: { show: false }, labelLine: { show: false },
         itemStyle: { borderColor: COLOR.card, borderWidth: 3, borderRadius: 6 },
         emphasis: { scale: true, scaleSize: 5 },
@@ -433,7 +456,8 @@
     });
   }
 
-  function barrasHorizontales(id, filas, color, textoTooltip, vacioTexto, maxChars = 20) {
+  // El gráfico ocupa todo el alto de su panel (lo da el CSS); las filas se reparten el espacio.
+  function barrasHorizontales(id, filas, color, textoTooltip, vacioTexto) {
     const el = $(id);
     if (!filas.length) { mensaje(el, vacioTexto); return; }
     const chart = crearGrafico(el);
@@ -442,20 +466,21 @@
     chart.setOption({
       ...ANIM,
       textStyle: TEXTO,
-      grid: { left: 8, right: 34, top: 4, bottom: 4, containLabel: true },
+      grid: { left: 4, right: 14, top: 4, bottom: 4, containLabel: true },
       tooltip: { ...TOOLTIP, trigger: "axis", axisPointer: { type: "none" }, formatter: (ps) => textoTooltip(filas[ps[0].dataIndex]) },
       xAxis: { type: "value", show: false, max: (v) => Math.max(1, Math.ceil(v.max * 1.12)) },
       yAxis: {
         type: "category", inverse: true,
-        data: filas.map((f) => { const t = cap(f.nombre); return t.length > maxChars ? `${t.slice(0, maxChars - 1)}…` : t; }),
+        // Los nombres largos se acortan acá; el nombre completo queda en el tooltip.
+        data: filas.map((f) => { const t = cap(f.nombre); return t.length > 30 ? `${t.slice(0, 29)}…` : t; }),
         axisTick: { show: false }, axisLine: { show: false },
-        axisLabel: { color: COLOR.ink, margin: 8 },
+        axisLabel: { color: COLOR.ink, margin: 12 },
       },
       series: [{
-        type: "bar", data: filas.map((f) => f.n), barWidth: "36%", barMaxWidth: 18,
-        itemStyle: { color, borderRadius: [0, 5, 5, 0] },
-        showBackground: true, backgroundStyle: { color: "rgba(18,39,30,.05)", borderRadius: 5 },
-        label: { show: true, position: "right", color: COLOR.ink, fontWeight: 600, fontSize: 10, formatter: (p) => nf.format(p.value) },
+        type: "bar", data: filas.map((f) => f.n), barWidth: "54%", barMaxWidth: 34,
+        itemStyle: { color, borderRadius: [0, 10, 10, 0] },
+        showBackground: true, backgroundStyle: { color: "rgba(18,39,30,.06)", borderRadius: 10 },
+        label: { show: true, position: "right", color: COLOR.ink, fontWeight: 600, formatter: (p) => nf.format(p.value) },
         animationDelay: (i) => i * 60,
       }],
     });
@@ -463,16 +488,40 @@
 
   seguro("mensual", () => mensual.iniciar());
   seguro("estados", dibujarEstados);
-  seguro("top", () => barrasHorizontales("#chart-top", DATA.top, COLOR.verde,
+  seguro("top", () => barrasHorizontales("#chart-top", DATA.top, degradado("#2fa36b", "#0b5f43", true),
     (f) => `<strong>${esc(cap(f.nombre))}</strong>${f.cientifico ? `<br><i style="opacity:.7">${esc(f.cientifico)}</i>` : ""}<br>${nf.format(f.n)} avistamiento${f.n === 1 ? "" : "s"}`,
-    "Todavía no hay avistamientos con especie asignada.", 22));
-  seguro("clases", () => barrasHorizontales("#chart-clases", DATA.clases, COLOR.doradoOscuro,
-    (f) => `<strong>${esc(cap(f.nombre))}</strong><br>${nf.format(f.n)} especie${f.n === 1 ? "" : "s"}`,
-    "Todavía no hay especies cargadas.", 14));
+    "Todavía no hay avistamientos con especie asignada."));
+  seguro("clases", () => {
+    const el = $("#chart-clases"), filas = DATA.clases;
+    if (!filas.length) { mensaje(el, "Todavía no hay especies cargadas."); return; }
+    const chart = crearGrafico(el);
+    if (!chart) return;
+    const total = filas.reduce((a, f) => a + f.n, 0);
+    el.setAttribute("aria-label", "Especies por clase: " + filas.map((f) => `${cap(f.nombre)} ${f.n}`).join(", "));
+    chart.setOption({
+      ...ANIM,
+      textStyle: TEXTO,
+      tooltip: { ...TOOLTIP, trigger: "item", formatter: (p) => `<strong>${esc(cap(p.name))}</strong><br>${nf.format(p.value)} especie${p.value === 1 ? "" : "s"} · ${Math.round((p.value / total) * 100)}% del catálogo` },
+      series: [{
+        type: "treemap", left: 0, right: 0, top: 0, bottom: 0, roam: false, nodeClick: false, breadcrumb: { show: false },
+        itemStyle: { borderColor: COLOR.card, borderWidth: 4, gapWidth: 4, borderRadius: 10 },
+        label: {
+          show: true, position: "insideTopLeft", padding: [10, 12], overflow: "truncate", ellipsis: "…",
+          formatter: (p) => `{n|${cap(p.name)}}\n{v|${nf.format(p.value)}}`,
+          rich: { n: { fontSize: 14, fontWeight: 600, lineHeight: 20, fontFamily: FUENTE }, v: { fontSize: 30, fontWeight: 600, lineHeight: 38, fontFamily: 'Fraunces, Georgia, serif' } },
+        },
+        emphasis: { itemStyle: { opacity: 0.88 } },
+        data: filas.map((f, k) => { const c = CLASE_PALETA[k % CLASE_PALETA.length]; return { name: f.nombre, value: f.n, itemStyle: { color: c.bg }, label: { color: c.fg } }; }),
+      }],
+    });
+  });
 
+  /* ---------------------------------------------------------------
+     Mapa (se arma la primera vez que se abre la pestaña)
+  --------------------------------------------------------------- */
   const mapa = (() => {
-    const PASO = 0.1;
-    const CIUDADES = [
+    const PASO = 0.1;   // lado de cada celda, en grados (~11 km)
+    const CIUDADES = [  // referencias aproximadas, solo para orientarse: [nombre, lon, lat, lado de la etiqueta]
       ["Puerto Iguazú", -54.5736, -25.5991, "right"], ["Eldorado", -54.6347, -26.4000, "right"],
       ["Bernardo de Irigoyen", -53.6481, -26.2517, "left"], ["Oberá", -55.1199, -27.4871, "right"],
       ["Posadas", -55.9008, -27.3621, "right"], ["Apóstoles", -55.7525, -27.9086, "right"],
@@ -485,6 +534,7 @@
     const claveCelda = (lon, lat) => `${Math.floor(lon / PASO)}|${Math.floor(lat / PASO)}`;
     const colorCelda = (n, max) => max <= 1 ? RAMPA[2] : RAMPA[Math.min(RAMPA.length - 1, Math.round(((n - 1) / (max - 1)) * (RAMPA.length - 1)))];
 
+    // Agrupa los avistamientos por lugar exacto (puntos) y por cuadrícula (celdas).
     function agrupar(lista) {
       const puntos = new Map(), celdas = new Map();
       const sumar = (mapaGrupos, clave, base, r) => {
@@ -500,6 +550,7 @@
         const ix = Math.floor(r.lon / PASO), iy = Math.floor(r.lat / PASO);
         sumar(celdas, `${ix}|${iy}`, { clave: `${ix}|${iy}`, lon0: +(ix * PASO).toFixed(6), lat0: +(iy * PASO).toFixed(6) }, r);
       }
+      // Se pasa a objetos simples: ECharts clona los datos y no conserva Map ni Set.
       const cerrar = (m) => [...m.values()].map((g) => {
         const zonas = [...g.zonas.entries()].sort((a, b) => b[1] - a[1]).map(([z]) => z);
         const nombre = zonas.slice(0, 2).join(" · ") || "Ubicación sin nombre";
@@ -564,6 +615,7 @@
       const opcion = { ...ANIM, textStyle: TEXTO, series, tooltip: { ...TOOLTIP, trigger: "item", formatter: tooltip } };
       if (st.geo) {
         opcion.geo = {
+          // layoutCenter + layoutSize conservan las proporciones del mapa (con left/right/top/bottom se estira).
           map: "Misiones", roam: true, layoutCenter: ["50%", "50%"], layoutSize: "100%",
           aspectScale: 0.89, scaleLimit: { min: 1, max: 20 },
           label: { show: false },
@@ -601,10 +653,12 @@
       actualizarPanel(lista, g, max);
     }
 
+    // Acerca el mapa para que Misiones ocupe todo el espacio, aunque el archivo traiga provincias vecinas.
+    // Se mide cuánto ocupa Misiones en pantalla y se ajusta el zoom en esa proporción.
     function encuadrar() {
       if (!st.geo || !st.chart || !st.vista) return;
       const ancho = st.chart.getWidth(), alto = st.chart.getHeight();
-      if (ancho < 50 || alto < 50) return;
+      if (ancho < 50 || alto < 50) return;   // pestaña oculta: se reintenta al mostrarla
       const [[x0, y1], [x1, y0]] = st.vista.encuadre;
       const a = st.chart.convertToPixel({ geoIndex: 0 }, [x0, y1]);
       const b = st.chart.convertToPixel({ geoIndex: 0 }, [x1, y0]);
@@ -627,7 +681,7 @@
 
       const ul = $("#mapa-lista");
       ul.textContent = "";
-      g.puntos.slice(0, 40).forEach((p) => {
+      g.puntos.slice(0, 40).forEach((p) => {   // la lista hace scroll interno y llena el alto del panel
         const li = document.createElement("li");
         const b = document.createElement("button");
         b.type = "button";
@@ -670,6 +724,7 @@
       const principal = gj.features.find((f) => props(f).rol === "principal")
         || gj.features.find((f) => props(f).name === "Misiones") || gj.features[0];
 
+      // Caja que encuadra a Misiones (con un margen), para que ocupe el mapa aunque haya vecinos.
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       const recorrer = (c) => {
         if (typeof c[0] === "number") { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
@@ -678,6 +733,7 @@
       recorrer(principal.geometry.coordinates);
       const mx = (x1 - x0) * 0.04, my = (y1 - y0) * 0.04;
 
+      // Las regiones vecinas (si el archivo las trae) se pintan atenuadas.
       const contexto = gj.features.filter((f) => f !== principal).map((f) => ({
         name: props(f).name,
         itemStyle: { areaColor: "#ece9dc", borderColor: "#b9c2b8", borderWidth: 1, borderType: "dashed" },
@@ -709,13 +765,13 @@
         $$("[data-modo]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
         dibujar();
       }));
-      $("#mapa-reset").addEventListener("click", () => dibujar());
+      $("#mapa-reset").addEventListener("click", () => dibujar());   // vuelve a armar el mapa: restablece zoom y posición
     }
 
     async function iniciar() {
       llenarEspecies();
       enlazar();
-      if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos."); return; }
+      if (!TIENE_ECHARTS) { mensaje(el, "No se pudo cargar la librería de gráficos. Revisá tu conexión a internet."); return; }
       st.chart = echarts.init(el);
       new ResizeObserver(() => { st.chart.resize(); if (st.grupos) encuadrar(); }).observe(el);
       st.chart.showLoading({ text: "Cargando mapa…", color: COLOR.dorado, textColor: COLOR.soft, maskColor: "rgba(255,254,250,.7)" });
@@ -738,6 +794,54 @@
     return { activar };
   })();
 
+  /* Ajuste a la ventana: ancho completo y alto = lo que queda de pantalla */
+  const dash = root;
+  function ajustar() {
+    // Ancho completo: se anula el contenedor del layout base
+    dash.style.marginLeft = "0px";
+    dash.style.width = "";
+    const izq = dash.getBoundingClientRect().left;
+    dash.style.marginLeft = `${-izq}px`;
+    dash.style.width = `${document.documentElement.clientWidth}px`;
+
+    // Alto: lo que queda de ventana. Se prueba con el modo ajustado y se revierte si no alcanza.
+    const grande = window.innerWidth >= 900 && !$("#panel-mapa").hidden;   // solo el Mapa se ajusta a la pantalla; el Resumen crece hacia abajo
+    document.body.classList.toggle("dash-fit", grande);
+    dash.classList.toggle("is-fit", grande);
+    dash.style.height = "";
+    let ok = false;
+    if (grande) {
+      window.scrollTo(0, 0);
+      const top = dash.getBoundingClientRect().top;
+      const alto = window.innerHeight - top - 10;
+      if (alto >= 400) { dash.style.height = `${alto}px`; ok = true; }
+    }
+    if (!ok) {
+      document.body.classList.remove("dash-fit");
+      dash.classList.remove("is-fit");
+    }
+    charts.forEach((c) => c.resize());
+  }
+  window.addEventListener("resize", ajustar);
+  window.addEventListener("load", ajustar);
+  ajustar();
+
+  /* Lista de últimos registros: cerrada por defecto; al abrir crece hacia abajo y los gráficos se achican */
+  (() => {
+    const btn = $("#ultimos-toggle"), body = $("#ultimos-body"), txt = $("#ultimos-toggle-txt");
+    if (!btn || !body) return;
+    btn.addEventListener("click", () => {
+      const abrir = btn.getAttribute("aria-expanded") !== "true";
+      btn.setAttribute("aria-expanded", String(abrir));
+      body.hidden = !abrir;
+      txt.textContent = abrir ? "Ocultar lista" : "Mostrar lista";
+      requestAnimationFrame(() => charts.forEach((c) => c.resize()));
+    });
+  })();
+
+  /* ---------------------------------------------------------------
+     Pestañas Resumen / Mapa
+  --------------------------------------------------------------- */
   const tabs = $$('[role="tab"]');
   function mostrar(nombre, { foco = false, hash = true } = {}) {
     tabs.forEach((t) => {
@@ -749,7 +853,7 @@
     $$('[role="tabpanel"]').forEach((p) => { p.hidden = p.id !== `panel-${nombre}`; });
     if (hash) history.replaceState(null, "", nombre === "mapa" ? "#mapa" : location.pathname + location.search);
     requestAnimationFrame(() => {
-      ajustarAltura();
+      ajustar();
       if (nombre === "mapa") mapa.activar(); else charts.forEach((c) => c.resize());
     });
   }
