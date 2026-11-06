@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.utils import timezone
 
+from .geo import centro_departamento, centros_departamentos, departamento_de, hay_datos as hay_geo_departamentos
 from .models import (
     Especie,
     Fuente,
@@ -108,6 +109,16 @@ class EspecieFiltroForm(forms.Form):
 # Antigüedad máxima (en días) de la fecha de un avistamiento cargado manualmente: ~2 meses.
 MAX_DIAS_ATRAS_MANUAL = 60
 
+# Bounding box aproximado de Misiones. Lo usa el formulario para validar coordenadas y el
+# dashboard (views.py) para descartar puntos mal geocodificados: tienen que coincidir, por
+# eso se definen una sola vez, acá.
+MISIONES_LAT = (-28.3, -25.4)
+MISIONES_LON = (-56.1, -53.6)
+
+
+def _en_rango(valor, rango):
+    return rango[0] <= valor <= rango[1]
+
 
 class AvistamientoForm(forms.ModelForm):
     """
@@ -150,26 +161,30 @@ class AvistamientoForm(forms.ModelForm):
     # --- Ubicación (opcional: se deja vacía si no se pudo ubicar el lugar) ---
     lugar_nombre = forms.CharField(
         label='Lugar', max_length=200, required=False,
-        widget=forms.TextInput(attrs={'placeholder': 'Ej. Parque Nacional Iguazú'}),
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ej. Parque Nacional Iguazú',
+            'list': 'lista-lugares',      # <datalist> que arma el JS con los lugares ya cargados
+            'autocomplete': 'off',
+        }),
+        help_text='Empezá a escribir: si el lugar ya está cargado se completan solos el departamento y las coordenadas.',
     )
     lugar_departamento = forms.ChoiceField(
         label='Departamento', required=False,
         choices=[('', 'Sin determinar')] + list(Ubicacion.Departamento.choices),
-        help_text='Departamento de Misiones donde ocurrió el avistamiento.',
+        help_text='Las coordenadas se completan solas con un punto aproximado del departamento.',
     )
     lugar_latitud = forms.FloatField(
         label='Latitud', required=False, min_value=-90, max_value=90,
-        widget=forms.NumberInput(attrs={'step': 'any', 'placeholder': '-26.916700'}),
-        help_text='Entre -90 y 90. Misiones ronda -25 a -28.',
+        widget=forms.HiddenInput(),   # oculta: se completa sola desde el departamento
     )
     lugar_longitud = forms.FloatField(
         label='Longitud', required=False, min_value=-180, max_value=180,
-        widget=forms.NumberInput(attrs={'step': 'any', 'placeholder': '-54.500000'}),
-        help_text='Entre -180 y 180. Misiones ronda -53 a -56.',
+        widget=forms.HiddenInput(),
     )
     lugar_precision = forms.ChoiceField(
         label='Precisión de la ubicación', required=False,
         choices=Ubicacion.Precision.choices, initial=Ubicacion.Precision.APROXIMADA,
+        widget=forms.HiddenInput(),
     )
 
     class Meta:
@@ -192,7 +207,7 @@ class AvistamientoForm(forms.ModelForm):
             'fragmento_origen': forms.Textarea(attrs={'rows': 3}),
         }
         help_texts = {
-            'especie': 'Dejala vacía si todavía no se pudo identificar.',
+            'especie': 'Obligatoria si el estado es Validado o Corregido. Dejala vacía solo si queda Pendiente o Descartado.',
             'fecha_avistamiento': 'Dejala vacía si no se conoce con precisión.',
             'observaciones': (
                 'Obligatorio en cargas manuales: es el respaldo del avistamiento '
@@ -224,6 +239,7 @@ class AvistamientoForm(forms.ModelForm):
             # Las cargas manuales del Administrador nacen validadas.
             self.initial.setdefault('estado_calidad', Registro.EstadoCalidad.VALIDADO)
 
+        self.coordenadas_automaticas = False
         self.es_manual = self.instance.origen_registro == Registro.OrigenRegistro.MANUAL
 
         # Cargas manuales: la fecha solo puede ser de los últimos 2 meses. El min/max
@@ -237,6 +253,26 @@ class AvistamientoForm(forms.ModelForm):
                 'Solo se aceptan fechas de los últimos 2 meses. '
                 'Dejala vacía si no se conoce con precisión.'
             )
+
+        # --- Obligatoriedad visible (el asterisco lo dibuja _campo.html) ---
+        # Siempre obligatoria en cargas manuales: es el respaldo del avistamiento. Se marca con un
+        # atributo propio y no con required=True: esa regla ya la valida Registro.clean() y
+        # con required=True el error saldría duplicado.
+        if self.es_manual:
+            self.fields['observaciones'].siempre_obligatorio = True
+            self.fields['observaciones'].widget.attrs['aria-required'] = 'true'
+        # Condicionales: el asterisco aparece o no según otros campos (lo actualiza el JS del
+        # template; la regla real se valida en el servidor, en Registro.clean() y en clean()).
+        self.fields['especie'].requerido_si = 'estado'        # si el estado es Validado/Corregido
+        for nombre in ('lugar_nombre', 'lugar_departamento'):
+            self.fields[nombre].requerido_si = 'ubicacion'    # si se cargó cualquier dato de ubicación
+
+        # Latitud, longitud y precisión van ocultas: la persona indica lugar + departamento y las
+        # coordenadas se completan solas con un punto aproximado del departamento.
+        self.ubicacion_ayuda = (
+            'Opcional. Indicá el lugar y el departamento; las coordenadas se completan solas '
+            'con un punto aproximado.'
+        )
 
         # En un registro de scraping la noticia sigue siendo obligatoria.
         if not self.es_manual:
@@ -303,11 +339,165 @@ class AvistamientoForm(forms.ModelForm):
         if any([cleaned.get('lugar_nombre'), cleaned.get('lugar_departamento'), lat is not None, lon is not None]):
             if not cleaned.get('lugar_nombre') and 'lugar_nombre' not in self.errors:
                 self.add_error('lugar_nombre', 'Indicá el lugar.')
-            if lat is None and 'lugar_latitud' not in self.errors:
-                self.add_error('lugar_latitud', 'Indicá la latitud.')
-            if lon is None and 'lugar_longitud' not in self.errors:
-                self.add_error('lugar_longitud', 'Indicá la longitud.')
+
+            # Al editar: si se cambió el departamento y las coordenadas siguen siendo las del lugar
+            # anterior, se descartan para recalcularlas desde el nuevo departamento.
+            ubic = self.instance.ubicacion if self.instance.pk else None
+            depto = cleaned.get('lugar_departamento')
+            if (ubic and depto and depto != ubic.departamento
+                    and (lat, lon) == (ubic.latitud, ubic.longitud)):
+                lat = lon = None
+
+            # Sin coordenadas pero con departamento: se usa un punto central del departamento
+            # y la ubicación queda como APROXIMADA.
+            if lat is None and lon is None and depto:
+                centro = centro_departamento(depto)
+                if centro:
+                    lat, lon = centro
+                    cleaned['lugar_latitud'], cleaned['lugar_longitud'] = lat, lon
+                    cleaned['lugar_precision'] = Ubicacion.Precision.APROXIMADA
+                    self.coordenadas_automaticas = True
+
+            if lat is None or lon is None:
+                if 'lugar_departamento' not in self.errors:
+                    self.add_error('lugar_departamento', 'Elegí el departamento.')
+            elif not self._ubicacion_sin_cambios(lat, lon, None):
+                self._validar_coordenadas_misiones(lat, lon)
+            self._resolver_departamento(cleaned, lat, lon)
+
+            # Si las coordenadas son justo el punto central de su departamento (las completó el
+            # servidor o el JavaScript del formulario), la ubicación es aproximada aunque se
+            # haya elegido otra precisión: no es una medición.
+            if lat is not None and lon is not None and self._es_centro_de_departamento(cleaned, lat, lon):
+                cleaned['lugar_precision'] = Ubicacion.Precision.APROXIMADA
+
+            # Los campos ocultos no muestran errores: se trasladan al departamento.
+            for oculto in ('lugar_latitud', 'lugar_longitud'):
+                for mensaje in self.errors.get(oculto, []):
+                    if mensaje not in self.errors.get('lugar_departamento', []):
+                        self.add_error('lugar_departamento', mensaje)
         return cleaned
+
+    @staticmethod
+    def _es_centro_de_departamento(cleaned, lat, lon):
+        centro = centro_departamento(cleaned.get('lugar_departamento'))
+        return bool(centro) and abs(lat - centro[0]) < 1e-4 and abs(lon - centro[1]) < 1e-4
+
+    def _resolver_departamento(self, cleaned, lat, lon):
+        """
+        El dashboard agrupa las ubicaciones por departamento, así que siempre tiene que quedar uno:
+          - si no se eligió, se calcula a partir de las coordenadas (geo.py);
+          - si se eligió y las coordenadas caen claramente en otro, se avisa (no se pisa en silencio);
+          - si no hay forma de calcularlo (falta el archivo de departamentos o el punto cae
+            lejos de la provincia), hay que elegirlo a mano.
+        """
+        depto = cleaned.get('lugar_departamento')
+        errores_coords = 'lugar_latitud' in self.errors or 'lugar_longitud' in self.errors
+        calculado, exacto = (None, False)
+        if lat is not None and lon is not None and not errores_coords:
+            calculado, exacto = departamento_de(lat, lon)
+
+        if not depto:
+            if calculado:
+                cleaned['lugar_departamento'] = calculado
+            elif not errores_coords and 'lugar_departamento' not in self.errors:
+                self.add_error('lugar_departamento', 'Elegí el departamento.')
+            return
+
+        if calculado and exacto and calculado != depto and not self._ubicacion_sin_cambios(lat, lon, depto):
+            self.add_error(
+                'lugar_departamento',
+                f'Las coordenadas caen en el departamento {calculado}, no en {depto}. '
+                'Corregí el departamento o las coordenadas.',
+            )
+
+    def _ubicacion_sin_cambios(self, lat, lon, depto):
+        """
+        Al editar un registro viejo sin tocar la ubicación no se vuelven a exigir las reglas
+        nuevas (rango y departamento). Con depto=None solo se comparan las coordenadas.
+        """
+        ubic = self.instance.ubicacion if self.instance.pk else None
+        if not ubic or (lat, lon) != (ubic.latitud, ubic.longitud):
+            return False
+        return depto is None or depto == ubic.departamento
+
+    def _validar_coordenadas_misiones(self, lat, lon):
+        """
+        Fuera de Misiones el avistamiento se guarda pero el dashboard lo descarta del mapa
+        (bounding box), así que se frena acá con un mensaje que explique el error más común.
+        """
+        if 'lugar_latitud' in self.errors or 'lugar_longitud' in self.errors:
+            return
+        if _en_rango(lat, MISIONES_LAT) and _en_rango(lon, MISIONES_LON):
+            return
+        if _en_rango(lon, MISIONES_LAT) and _en_rango(lat, MISIONES_LON):
+            self.add_error('lugar_latitud', 'Parecen estar invertidas: primero va la latitud (ej. -27.36) y después la longitud (ej. -55.90).')
+            return
+        for campo, valor, rango, nombre in (
+            ('lugar_latitud', lat, MISIONES_LAT, 'latitud'),
+            ('lugar_longitud', lon, MISIONES_LON, 'longitud'),
+        ):
+            if _en_rango(valor, rango):
+                continue
+            if valor > 0 and _en_rango(-valor, rango):
+                self.add_error(campo, f'Falta el signo negativo: en Misiones la {nombre} es negativa.')
+            else:
+                self.add_error(
+                    campo,
+                    f'La {nombre} queda fuera de Misiones (debe estar entre {rango[0]} y {rango[1]}).',
+                )
+
+    # --- Estructura visual del formulario (la usa _campos_form.html) ---
+    def secciones_campos(self):
+        """Campos agrupados en secciones. Cada sección: titulo, ayuda, campos y, si es plegable, 'abierta'."""
+        def seccion(titulo, ayuda, nombres, plegable=False):
+            campos = [self[n] for n in nombres]
+            abierta = (
+                not plegable
+                or not self.es_manual                               # en scraping la noticia es obligatoria
+                or any(c.errors for c in campos)
+                or any(c.value() for c in campos)
+            )
+            return {'titulo': titulo, 'ayuda': ayuda, 'campos': campos, 'plegable': plegable, 'abierta': abierta}
+
+        return [
+            seccion('Avistamiento', '', ['especie', 'fecha_avistamiento', 'tipo_registro', 'estado_calidad', 'observaciones']),
+            seccion(
+                'Ubicación',
+                self.ubicacion_ayuda,
+                ['lugar_nombre', 'lugar_departamento', 'lugar_latitud', 'lugar_longitud', 'lugar_precision'],
+            ),
+            seccion(
+                'Noticia de origen' if not self.es_manual else 'Noticia de referencia (opcional)',
+                'Pegá el enlace si el avistamiento salió en una noticia.' if self.es_manual else '',
+                ['noticia_url', 'noticia_titulo', 'noticia_fuente', 'noticia_fecha_publicacion', 'fragmento_origen'],
+                plegable=True,
+            ),
+        ]
+
+    def centros_departamentos(self):
+        """{departamento: [lat, lon]} para que el formulario complete las coordenadas aproximadas."""
+        return {nombre: list(punto) for nombre, punto in centros_departamentos().items()}
+
+    def lugares_existentes(self):
+        """
+        Lugares ya cargados (uno por nombre) para autocompletar departamento y coordenadas.
+        Evita crear variantes del mismo lugar ('Parque Nacional Iguazu' vs 'Parque Nacional Iguazú').
+        """
+        vistos, lugares = set(), []
+        filas = Ubicacion.objects.order_by('nombre_lugar', 'id_ubicacion').values(
+            'nombre_lugar', 'departamento', 'latitud', 'longitud', 'precision',
+        )[:3000]
+        for f in filas:
+            clave = f['nombre_lugar'].strip().casefold()
+            if not clave or clave in vistos:
+                continue
+            vistos.add(clave)
+            lugares.append({
+                'n': f['nombre_lugar'], 'd': f['departamento'] or '',
+                'lat': f['latitud'], 'lon': f['longitud'], 'p': f['precision'],
+            })
+        return lugares
 
     def resolver_noticia(self):
         """

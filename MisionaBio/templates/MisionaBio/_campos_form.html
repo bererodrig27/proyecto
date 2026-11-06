@@ -1,17 +1,33 @@
-{# Renderiza todos los campos de un ModelForm con el estilo del sitio #}
+<!-- Renderiza los campos de un ModelForm con el estilo del sitio.
+     Si el formulario define secciones_campos() se agrupan en secciones; si no, es una grilla simple. -->
 {% if form.non_field_errors %}
   <div class="message message--error" role="alert">
     {% for error in form.non_field_errors %}{{ error }} {% endfor %}
   </div>
 {% endif %}
 
-<div class="form-grid">
-  {% for field in form.visible_fields %}
-    <div class="field{% if field.errors %} field--invalid{% endif %}">
-      <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="req" aria-hidden="true"> *</span>{% endif %}</label>
-      {{ field }}
-      {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
-      {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-    </div>
+{% if form.secciones_campos %}
+  {% for sec in form.secciones_campos %}
+    {% if sec.plegable %}
+      <details class="form-section form-section--plegable"{% if sec.abierta %} open{% endif %}>
+        <summary class="form-section__title">{{ sec.titulo }}</summary>
+        {% if sec.ayuda %}<p class="form-section__help">{{ sec.ayuda }}</p>{% endif %}
+        <div class="form-grid">
+          {% for field in sec.campos %}{% include "MisionaBio/_campo.html" %}{% endfor %}
+        </div>
+      </details>
+    {% else %}
+      <section class="form-section">
+        <h2 class="form-section__title">{{ sec.titulo }}</h2>
+        {% if sec.ayuda %}<p class="form-section__help">{{ sec.ayuda }}</p>{% endif %}
+        <div class="form-grid">
+          {% for field in sec.campos %}{% include "MisionaBio/_campo.html" %}{% endfor %}
+        </div>
+      </section>
+    {% endif %}
   {% endfor %}
-</div>
+{% else %}
+  <div class="form-grid">
+    {% for field in form.visible_fields %}{% include "MisionaBio/_campo.html" %}{% endfor %}
+  </div>
+{% endif %}

@@ -53,7 +53,7 @@ def obtener_fuente(url: str):
     p = urlparse(url)
     dominio = p.netloc.replace("www.", "")
     nombre, base = dominio, f"{p.scheme}://{p.netloc}"
-    for nombre_medio, url_medio in config.SITIOS_WP.items():
+    for nombre_medio, url_medio in {**config.MEDIOS_SOLO_FEED, **config.SITIOS_WP}.items():
         if urlparse(url_medio).netloc.replace("www.", "") == dominio:
             nombre, base = nombre_medio, url_medio
             break

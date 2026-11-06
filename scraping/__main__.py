@@ -62,11 +62,13 @@ def procesar_nota(url: str, stats: Counter):
         cerrar(url, noticia, Estado.DESCARTADA)
         return
 
-    crudos = extraer_avistamientos(nota["titulo"], nota["fecha"], nota["texto"])
-    if crudos is None:                  # la IA falló: la nota queda en ERROR y se reintenta
-        stats["ia_error"] += 1
+    # extraer_avistamientos registra en HistorialIA cada llamada a la IA (éxito o
+    # error) vinculada a `noticia`, por eso se le pasa la Noticia ya creada.
+    crudos = extraer_avistamientos(noticia, nota["titulo"], nota["fecha"], nota["texto"])
+    if crudos is None:                  # la IA falló (ver HistorialIA): la nota queda en
+        stats["ia_error"] += 1          # ERROR y se reintenta en la próxima corrida
         cerrar(url, noticia, Estado.ERROR)
-        return
+        return                          # continúa automáticamente con la siguiente noticia (for del main)
     if not crudos:
         stats["sin_avistamientos"] += 1
         print("  [IA] la nota no reporta avistamientos")

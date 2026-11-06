@@ -15,8 +15,12 @@ CANDIDATOS = {
     "La Voz de Misiones": "https://www.lavozdemisiones.com",
     "Noticias Ambientales": "https://noticiasambientales.com",
     "El Territorio": "https://www.elterritorio.com.ar",
-    "Misiones Cuatro (?)": "https://misionescuatro.com",
-    "Canal 12 Misiones (?)": "https://canal12misiones.com",
+    "Misiones Cuatro": "https://misionescuatro.com",
+    "Agencia Guacurarí": "https://agenciaguacarari.com.ar",
+    "Multimedios Génesis (Eldorado)": "https://multimediosgenesis.com",
+    "La Voz de Cataratas (Iguazú)": "https://lavozdecataratas.com",
+    "Stop en Línea (Montecarlo)": "https://stopenlinea.com.ar",
+    "Cielo Misiones (San Vicente)": "https://cielomisiones.com",
     "Noticias del 6 (?)": "https://noticiasdel6.com",
 }
 RUTAS_FEED = [

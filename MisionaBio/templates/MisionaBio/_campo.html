@@ -1,0 +1,9 @@
+{% if field.is_hidden %}{{ field }}{% else %}
+{# Un campo con su etiqueta, asterisco (fijo o condicional), ayuda y errores #}
+<div class="field{% if field.errors %} field--invalid{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required or field.field.siempre_obligatorio %}<span class="req" aria-hidden="true"> *</span>{% elif field.field.requerido_si %}<span class="req" data-req-si="{{ field.field.requerido_si }}" aria-hidden="true" hidden> *</span>{% endif %}</label>
+  {{ field }}
+  {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+  {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+</div>
+{% endif %}

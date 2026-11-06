@@ -12,15 +12,55 @@ APP_MODELOS = "MisionaBio"                   # AJUSTAR (app con Fuente, Noticia,
 
 # ------------------------------------------------------------------ DESCUBRIMIENTO
 FEEDS = {
+    # Medios provinciales y generales de apoyo
     "Misiones Online - fauna": "https://misionesonline.net/etiqueta/fauna/feed/",
-    "Misiones Online - fauna silvestre": "https://misionesonline.net/etiqueta/fauna-silvestre/feed/",
-    "Misiones Online - fauna misionera": "https://misionesonline.net/etiqueta/fauna-misionera/feed/",
-    "Misiones Online - general": "https://misionesonline.net/feed/",
     "Primera Edición - fauna": "https://www.primeraedicion.com.ar/nota/tag/fauna/feed/",
-    # Agregá acá los feeds que confirme probar_medios.py (python scraping/probar_medios.py).
+    
+    # 1. El Territorio (General / Regional Misiones)
+    "El Territorio - Misiones": "https://www.elterritorio.com.ar/rss",
+    
+    # 2. El Deafer / Medios de la Zona Centro (Oberá)
+    "OberáInside / Info Berá": "https://www.infomisiones.com/tag/obera/feed/",
+    
+    # 3. Guacurarí Misiones (Red de municipios / interior)
+    "Agencia Guacurarí": "https://agenciaguacarari.com.ar/feed/",
+    
+    # 4. Multimedios Génesis (Eldorado y Alto Paraná)
+    "Multimedios Génesis": "https://multimediosgenesis.com/feed/",
+    
+    # 5. La Voz de Cataratas (Puerto Iguazú)
+    "La Voz de Cataratas": "https://lavozdecataratas.com/feed/",
+    
+    # 6. Stop en Línea (Montecarlo / Zona Norte)
+    "Stop en Línea": "https://stopenlinea.com.ar/feed/",
+    
+    # 7. ANG - Agencia de Noticias Guacurarí (General interior)
+    "ANG Noticia Municipal": "https://agenciaguacarari.com.ar/category/municipios/feed/",
+    
+    # 8. San Vicente / Zona Centro-Este
+    "Cielo Misiones": "https://cielomisiones.com/feed/",
+    
+    # 9. Dos de Mayo / Zona Centro
+    "Noticias de la Calle (Misiones)": "https://www.noticiasdelacalle.com.ar/feed/",
+    
+    # 10. Portal de Alem / Leandro N. Alem y Apóstoles
+    "Misiones Cuatro - Interior": "https://misionescuatro.com/category/provinciales/feed/",
 }
-PAGINAS_POR_FEED = 10
 
+# Sitios WordPress adicionales del interior o regionales para búsqueda por términos (wp-json)
+SITIOS_WP = {
+    "Misiones Online": "https://misionesonline.net",
+    "Primera Edición": "https://www.primeraedicion.com.ar",
+    "La Voz de Misiones": "https://www.lavozdemisiones.com",
+    "Noticias Ambientales": "https://noticiasambientales.com",
+    # Agregando soporte WP para portales del interior compatibles:
+    "Agencia Guacurarí": "https://agenciaguacarari.com.ar",
+    "Multimedios Génesis": "https://multimediosgenesis.com",
+}
+PAGINAS_POR_FEED = 5
+
+# Sitios WordPress donde se busca por TERMINOS_BUSQUEDA (API wp-json; si falla, RSS de búsqueda).
+# La clave es el nombre del medio: así se guarda en la tabla fuente.
 # Sitios WordPress donde se busca por TERMINOS_BUSQUEDA (API wp-json; si falla, RSS de búsqueda).
 # La clave es el nombre del medio: así se guarda en la tabla fuente.
 SITIOS_WP = {
@@ -28,6 +68,20 @@ SITIOS_WP = {
     "Primera Edición": "https://www.primeraedicion.com.ar",
     "La Voz de Misiones": "https://www.lavozdemisiones.com",
     "Noticias Ambientales": "https://noticiasambientales.com",
+    # Portales del interior con WordPress (para la búsqueda por términos):
+    "Agencia Guacurarí": "https://agenciaguacarari.com.ar",
+    "Multimedios Génesis": "https://multimediosgenesis.com",
+}
+# Medios que solo se leen por RSS (FEEDS). Sirven para que en la tabla fuente se guarden con su
+# nombre y no con el dominio ("El Territorio" en vez de "elterritorio.com.ar").
+MEDIOS_SOLO_FEED = {
+    "El Territorio": "https://www.elterritorio.com.ar",
+    "Info Misiones": "https://www.infomisiones.com",
+    "La Voz de Cataratas": "https://lavozdecataratas.com",
+    "Stop en Línea": "https://stopenlinea.com.ar",
+    "Cielo Misiones": "https://cielomisiones.com",
+    "Noticias de la Calle": "https://www.noticiasdelacalle.com.ar",
+    "Misiones Cuatro": "https://misionescuatro.com",
 }
 # Medios que no son solo de Misiones: a cada término se le agrega " Misiones" para no
 # traer (y pagar con la IA) notas de otras provincias.
@@ -47,7 +101,7 @@ LOG_CSV = DATOS_DIR / "avistamientos_extraidos.csv"   # auditoría de lo que dev
 USER_AGENT = "TPI-Biodiversidad-Misiones/0.2 (proyecto educativo; contacto: tu_mail@ejemplo.com)"
 PAUSA_SEGUNDOS = 2
 TIMEOUT = 15
-MAX_NOTAS_POR_CORRIDA = 150
+MAX_NOTAS_POR_CORRIDA = 30
 
 # ------------------------------------------------------------------ IA (Gemini)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")

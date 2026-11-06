@@ -195,7 +195,6 @@
         <label class="d-field">Especie
           <select id="mapa-especie"><option value="">Todas</option></select>
         </label>
-        <button type="button" class="d-btn" id="mapa-reset">Restablecer vista</button>
       </div>
 
       <!-- Mapa: ocupa todo el alto disponible -->
@@ -226,7 +225,7 @@
         <header class="d-panel__head">
           <div>
             <h2 id="h-ubic">Ubicaciones</h2>
-            <p class="d-hint">Tocá una para verla en el mapa.</p>
+            <p class="d-hint">Agrupadas por departamento. Tocá una para verla en el mapa.</p>
           </div>
           <div class="d-stats">
             <div><strong id="mapa-stat-av">0</strong><span>Avistam.</span></div>
@@ -527,7 +526,7 @@
       ["Posadas", -55.9008, -27.3621, "right"], ["Apóstoles", -55.7525, -27.9086, "right"],
       ["Jardín América", -55.2275, -27.0392, "right"],
     ];
-    const REG = DATA.registros.map(([lon, lat, zona, fecha, especie]) => ({ lon, lat, zona, fecha, especie }));
+    const REG = DATA.registros.map(([lon, lat, zona, fecha, especie, depto]) => ({ lon, lat, zona, fecha, especie, depto }));
     const el = $("#mapa-chart");
     const st = { chart: null, iniciado: false, geo: false, modo: "ambos", especie: "", grupos: null, idx: {}, vista: null };
 
@@ -539,8 +538,9 @@
       const puntos = new Map(), celdas = new Map();
       const sumar = (mapaGrupos, clave, base, r) => {
         let g = mapaGrupos.get(clave);
-        if (!g) { g = { ...base, n: 0, zonas: new Map(), especies: new Set(), items: [] }; mapaGrupos.set(clave, g); }
+        if (!g) { g = { ...base, n: 0, zonas: new Map(), deptos: new Map(), especies: new Set(), items: [] }; mapaGrupos.set(clave, g); }
         g.n += 1;
+        if (r.depto) g.deptos.set(r.depto, (g.deptos.get(r.depto) || 0) + 1);
         if (r.zona) g.zonas.set(r.zona, (g.zonas.get(r.zona) || 0) + 1);
         g.especies.add(r.especie);
         if (g.items.length < 5) g.items.push({ especie: r.especie, fecha: r.fecha });
@@ -554,7 +554,8 @@
       const cerrar = (m) => [...m.values()].map((g) => {
         const zonas = [...g.zonas.entries()].sort((a, b) => b[1] - a[1]).map(([z]) => z);
         const nombre = zonas.slice(0, 2).join(" · ") || "Ubicación sin nombre";
-        return { clave: g.clave, lon: g.lon, lat: g.lat, lon0: g.lon0, lat0: g.lat0, n: g.n, nombre,
+        const depto = [...g.deptos.entries()].sort((a, b) => b[1] - a[1]).map(([d]) => d)[0] || "";
+        return { clave: g.clave, lon: g.lon, lat: g.lat, lon0: g.lon0, lat0: g.lat0, n: g.n, nombre, depto,
                  info: { nombre, n: g.n, nEspecies: g.especies.size, items: g.items } };
       }).sort((a, b) => b.n - a.n);
       return { puntos: cerrar(puntos), celdas: cerrar(celdas) };
@@ -672,6 +673,17 @@
 
     function actualizarPanel(lista, g, max) {
       $("#mapa-stat-av").textContent = nf.format(lista.length);
+      // El listado agrupa por departamento; los puntos sin departamento se agrupan por nombre de lugar.
+      const porGrupo = new Map();
+      for (const p of g.puntos) {   // g.puntos ya viene de mayor a menor
+        const nombreGrupo = p.depto || p.nombre;
+        let e = porGrupo.get(nombreGrupo);
+        if (!e) { e = { nombre: nombreGrupo, n: 0, principal: p, puntos: [], lugares: 0 }; porGrupo.set(nombreGrupo, e); }
+        e.n += p.n;
+        e.puntos.push(p);
+      }
+      // De mayor a menor cantidad de avistamientos; a igualdad, por nombre (orden estable).
+      const lugares = [...porGrupo.values()].sort((a, b) => b.n - a.n || a.nombre.localeCompare(b.nombre, "es"));
       $("#mapa-stat-ub").textContent = nf.format(g.puntos.length);
       $("#mapa-stat-es").textContent = nf.format(new Set(lista.map((r) => r.especie)).size);
       $("#mapa-ramp-max").textContent = nf.format(max);
@@ -681,7 +693,7 @@
 
       const ul = $("#mapa-lista");
       ul.textContent = "";
-      g.puntos.slice(0, 40).forEach((p) => {   // la lista hace scroll interno y llena el alto del panel
+      lugares.slice(0, 40).forEach((p) => {   // la lista hace scroll interno y llena el alto del panel
         const li = document.createElement("li");
         const b = document.createElement("button");
         b.type = "button";
@@ -691,24 +703,47 @@
         n.className = "d-n";
         n.textContent = nf.format(p.n);
         b.append(nombre, n);
-        b.addEventListener("click", () => resaltar(p));
+        b.addEventListener("click", () => resaltar(p.principal, p.puntos));   // resalta todos los puntos del grupo
         li.appendChild(b);
         ul.appendChild(li);
       });
+      distribuirColumnas();
     }
 
-    function resaltar(p) {
+    // La lista se llena por columnas: se calcula cuántas caben según el ancho (mín. 240 px
+    // cada una) y cuántas filas hacen falta para repartir los departamentos en orden.
+    function distribuirColumnas() {
+      const MIN_COL = 240, GAP_COL = 8;
+      const ul = $("#mapa-lista");
+      const total = ul.children.length;
+      if (!total) return;
+      const cols = Math.max(1, Math.min(total, Math.floor((ul.clientWidth + GAP_COL) / (MIN_COL + GAP_COL))));
+      const filas = Math.ceil(total / cols);
+      ul.style.setProperty("--cols", cols);
+      ul.style.setProperty("--filas", filas);
+      // También se aplica en línea: así el reparto por columnas funciona aunque el navegador
+      // tenga guardada una versión vieja de dashboard.css.
+      ul.style.gridAutoFlow = "column";
+      ul.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+      ul.style.gridTemplateRows = `repeat(${filas}, auto)`;
+    }
+    if (window.ResizeObserver) new ResizeObserver(distribuirColumnas).observe($("#mapa-lista"));
+    else window.addEventListener("resize", distribuirColumnas);
+
+    function resaltar(p, todos = [p]) {
       if (!st.chart) return;
       const usaPuntos = st.idx.puntos !== undefined;
       const serie = usaPuntos ? st.idx.puntos : st.idx.celdas;
       if (serie === undefined) return;
-      const i = usaPuntos
-        ? st.grupos.puntos.indexOf(p)
-        : st.grupos.celdas.findIndex((c) => c.clave === claveCelda(p.lon, p.lat));
+      const indiceDe = (q) => usaPuntos
+        ? st.grupos.puntos.indexOf(q)
+        : st.grupos.celdas.findIndex((c) => c.clave === claveCelda(q.lon, q.lat));
+      const i = indiceDe(p);
       if (i < 0) return;
+      const todosIdx = [...new Set(todos.map(indiceDe).filter((k) => k >= 0))];
       const px = st.chart.convertToPixel(st.geo ? { geoIndex: 0 } : { xAxisIndex: 0, yAxisIndex: 0 }, [p.lon, p.lat]);
       st.chart.dispatchAction({ type: "downplay" });
-      st.chart.dispatchAction({ type: "highlight", seriesIndex: serie, dataIndex: i });
+      st.chart.dispatchAction({ type: "highlight", seriesIndex: serie, dataIndex: todosIdx });
       if (px) st.chart.dispatchAction({ type: "showTip", seriesIndex: serie, dataIndex: i, x: px[0], y: px[1] });
     }
 
@@ -765,7 +800,6 @@
         $$("[data-modo]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
         dibujar();
       }));
-      $("#mapa-reset").addEventListener("click", () => dibujar());   // vuelve a armar el mapa: restablece zoom y posición
     }
 
     async function iniciar() {
@@ -797,31 +831,34 @@
   /* Ajuste a la ventana: ancho completo y alto = lo que queda de pantalla */
   const dash = root;
   function ajustar() {
-    // Ancho completo: se anula el contenedor del layout base
-    dash.style.marginLeft = "0px";
-    dash.style.width = "";
-    const izq = dash.getBoundingClientRect().left;
-    dash.style.marginLeft = `${-izq}px`;
-    dash.style.width = `${document.documentElement.clientWidth}px`;
+  // 1) Primero se resuelve el estado final de las clases de "fit"
+  const grande = window.innerWidth >= 900 && !$("#panel-mapa").hidden;
+  document.body.classList.toggle("dash-fit", grande);
+  dash.classList.toggle("is-fit", grande);
+  dash.style.height = "";
 
-    // Alto: lo que queda de ventana. Se prueba con el modo ajustado y se revierte si no alcanza.
-    const grande = window.innerWidth >= 900 && !$("#panel-mapa").hidden;   // solo el Mapa se ajusta a la pantalla; el Resumen crece hacia abajo
-    document.body.classList.toggle("dash-fit", grande);
-    dash.classList.toggle("is-fit", grande);
-    dash.style.height = "";
-    let ok = false;
-    if (grande) {
-      window.scrollTo(0, 0);
-      const top = dash.getBoundingClientRect().top;
-      const alto = window.innerHeight - top - 10;
-      if (alto >= 400) { dash.style.height = `${alto}px`; ok = true; }
-    }
-    if (!ok) {
-      document.body.classList.remove("dash-fit");
-      dash.classList.remove("is-fit");
-    }
-    charts.forEach((c) => c.resize());
+  let ok = false;
+  if (grande) {
+    window.scrollTo(0, 0);
+    const top = dash.getBoundingClientRect().top;
+    const alto = window.innerHeight - top - 10;
+    if (alto >= 400) { dash.style.height = `${alto}px`; ok = true; }
   }
+  if (!ok) {
+    document.body.classList.remove("dash-fit");
+    dash.classList.remove("is-fit");
+  }
+
+  // 2) Recién ahora, con el padding del contenedor ya en su valor definitivo,
+  //    se mide y corrige el ancho/margen horizontal.
+  dash.style.marginLeft = "0px";
+  dash.style.width = "";
+  const izq = dash.getBoundingClientRect().left;
+  dash.style.marginLeft = `${-izq}px`;
+  dash.style.width = `${document.documentElement.clientWidth}px`;
+
+  charts.forEach((c) => c.resize());
+}
   window.addEventListener("resize", ajustar);
   window.addEventListener("load", ajustar);
   ajustar();

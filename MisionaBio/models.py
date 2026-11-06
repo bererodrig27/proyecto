@@ -733,6 +733,58 @@ class ExtraccionIA(models.Model):
 
 
 # =============================================================================
+# Historial de IA (caja negra de cada interacción con el modelo de lenguaje)
+# =============================================================================
+
+class HistorialIA(models.Model):
+    # Tabla "historial_ia": id_historial, id_noticia, modelo, prompt_enviado,
+    #                       respuesta_cruda, exito, detalle_error, fecha_ejecucion
+    #
+    # Registra TODAS las llamadas a la IA hechas para una noticia (incluidos los
+    # reintentos), hayan tenido éxito o no. A diferencia de ExtraccionIA (que solo
+    # existe cuando se generó un Registro), este modelo deja trazabilidad aunque la
+    # extracción falle o la IA "alucine" una respuesta que no se puede parsear:
+    # permite auditar por qué una noticia terminó en estado ERROR sin tener que
+    # reproducir la corrida. No modifica ni depende de la estructura de Noticia,
+    # Registro ni ExtraccionIA.
+
+    id_historial = models.AutoField(primary_key=True)
+    noticia = models.ForeignKey(
+        Noticia,
+        on_delete=models.CASCADE,
+        db_column='id_noticia',
+        related_name='historiales_ia',
+        verbose_name='noticia',
+    )
+    modelo = models.CharField('modelo', max_length=100)
+    # Instrucciones + extracto de la nota tal como se mandaron a la API.
+    prompt_enviado = models.TextField('prompt enviado')
+    # Respuesta literal de la API, sin procesar (aunque no sea JSON válido).
+    respuesta_cruda = models.TextField('respuesta cruda', blank=True)
+    # True solo si la API devolvió un JSON válido y parseable.
+    exito = models.BooleanField('éxito', default=False)
+    # Mensaje/traza del error cuando exito=False (timeout, API caída, JSON inválido, etc.).
+    detalle_error = models.TextField('detalle del error', blank=True, null=True)
+    fecha_ejecucion = models.DateTimeField('fecha de ejecución', auto_now_add=True)
+
+    class Meta:
+        db_table = 'historial_ia'
+        verbose_name = 'historial de IA'
+        verbose_name_plural = 'historial de IA'
+        ordering = ['-fecha_ejecucion']
+        indexes = [
+            # No se indexa 'noticia' a propósito: Django ya crea un índice
+            # automático sobre toda columna de ForeignKey (db_index=True
+            # implícito), y duplicarlo en Oracle tira ORA-01408.
+            models.Index(fields=['exito'], name='ix_historial_exito'),
+        ]
+
+    def __str__(self):
+        estado = 'OK' if self.exito else 'ERROR'
+        return f'Historial IA #{self.pk} · noticia {self.noticia_id} ({estado})'
+
+
+# =============================================================================
 # Auditoría (la llenan triggers de la base de datos, no la aplicación)
 # =============================================================================
 

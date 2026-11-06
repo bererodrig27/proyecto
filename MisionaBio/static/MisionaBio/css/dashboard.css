@@ -733,8 +733,13 @@ html, body {
   list-style:none;
   margin:0;
   padding:0 .15rem 0 0;
+  /* Se llena por columnas (de arriba hacia abajo y luego a la columna siguiente): así la
+     primera columna tiene los departamentos con más avistamientos y el orden se lee de
+     mayor a menor. --cols y --filas los calcula el JS según el ancho disponible. */
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  grid-auto-flow:column;
+  grid-template-columns:repeat(var(--cols, 2),minmax(0,1fr));
+  grid-template-rows:repeat(var(--filas, 1),auto);
   align-content:start;
   gap:.25rem .5rem;
   overflow-y:auto;

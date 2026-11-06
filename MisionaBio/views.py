@@ -1,4 +1,7 @@
 # MisionaBio/views.py
+import re
+import unicodedata
+from collections import Counter
 from datetime import date, datetime, timedelta
 from functools import wraps
 from django.contrib.auth import login
@@ -27,6 +30,8 @@ from django.views.decorators.http import require_GET
 from .forms import (
     AvistamientoFiltroForm,
     AvistamientoForm,
+    MISIONES_LAT,
+    MISIONES_LON,
     EspecieFiltroForm,
     EspecieForm,
     RegistroUsuarioForm,
@@ -106,9 +111,8 @@ def registro_admin(request):
 # Dashboard
 # -----------------------------------------------------------------------------
 
-# Bounding box aproximado de Misiones: descarta coordenadas mal geocodificadas del scraping.
-MISIONES_LAT = (-28.3, -25.4)
-MISIONES_LON = (-56.1, -53.6)
+# Bounding box aproximado de Misiones (MISIONES_LAT / MISIONES_LON, definidos en forms.py):
+# descarta coordenadas mal geocodificadas del scraping.
 MAX_REGISTROS_MAPA = 5000   # tope de puntos que se envían al navegador
 MESES_SERIE = 36            # meses de historia para el gráfico por mes
 
@@ -199,9 +203,90 @@ def _top_especies(limite=6):
     ]
 
 
+# -----------------------------------------------------------------------------
+# Normalización de nombres de ubicación
+# -----------------------------------------------------------------------------
+# El scraping trae el mismo lugar escrito de varias formas ("Candelaria",
+# "Municipio de Candelaria", "OBERÁ", "Oberá"...). Se unifican acá para que el
+# mapa y el listado de ubicaciones no muestren duplicados.
+
+# Prefijos administrativos que no aportan: "Municipio de San Martín" -> "San Martín".
+_PREFIJO_ADMIN = re.compile(
+    r'^(?:municipio|departamento|localidad|ciudad|partido|comuna)\s+(?:de(?:l)?\s+)?(?:la\s+)?',
+    re.IGNORECASE,
+)
+_MINUSCULAS = {'de', 'del', 'la', 'las', 'los', 'el', 'y', 'e'}
+
+# Sinónimos conocidos. Clave = nombre ya pasado por _clave_zona (sin tildes, minúsculas);
+# valor = nombre que se muestra. Agregá acá los que vayas encontrando.
+ZONA_ALIAS = {
+    'iguazu': 'Puerto Iguazú',
+    'cataratas del iguazu': 'Parque Nacional Iguazú',
+    'urugua i': 'Parque Provincial Urugua-í',
+}
+
+
+def _clave_zona(texto):
+    """Clave de comparación: sin tildes, en minúsculas y sin signos ('Oberá ' == 'OBERA')."""
+    s = unicodedata.normalize('NFKD', texto)
+    s = ''.join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r'[^a-z0-9]+', ' ', s.lower()).strip()
+
+
+def _presentar_zona(texto):
+    """Prolijiza un nombre: espacios, prefijo administrativo y mayúsculas."""
+    t = re.sub(r'\s+', ' ', texto or '').strip(' ,.-·')
+    sin_prefijo = _PREFIJO_ADMIN.sub('', t).strip()
+    t = sin_prefijo or t
+    if t and (t.isupper() or t.islower()):   # 'OBERÁ' / 'oberá' -> 'Oberá'
+        palabras = t.lower().split(' ')
+        t = ' '.join(
+            w if (i and w in _MINUSCULAS) else w[:1].upper() + w[1:]
+            for i, w in enumerate(palabras)
+        )
+    return t
+
+
+def _mapa_zonas(zonas):
+    """
+    Recibe las zonas tal como están en la base y devuelve {original: nombre_normalizado}.
+    Las variantes de un mismo lugar quedan con la grafía más frecuente (con tilde si empatan).
+    """
+    variantes = {}   # clave -> Counter de nombres prolijados
+    por_original = {}
+    for original in set(zonas):
+        if not original or not original.strip():
+            continue
+        bonito = _presentar_zona(original)
+        clave = _clave_zona(bonito)
+        if not clave:
+            continue
+        por_original[original] = clave
+        variantes.setdefault(clave, Counter())[bonito] += 1
+
+    def elegir(clave):
+        if clave in ZONA_ALIAS:
+            return ZONA_ALIAS[clave]
+        # más frecuente; ante empate, la que tiene más caracteres no ASCII (tildes)
+        return max(variantes[clave].items(), key=lambda kv: (kv[1], sum(ord(c) > 127 for c in kv[0])))[0]
+
+    return {orig: elegir(clave) for orig, clave in por_original.items()}
+
+
+# Cómo se muestra cada departamento en el listado de ubicaciones.
+_DEPARTAMENTO_NOMBRE = {'Capital': 'Capital (Posadas)'}
+
+
+def _etiqueta_departamento(depto):
+    depto = (depto or '').strip()
+    if not depto:
+        return ''
+    return f"Dpto. {_DEPARTAMENTO_NOMBRE.get(depto, depto)}"
+
+
 def _registros_mapa():
     """
-    Un registro por avistamiento: [longitud, latitud, zona, fecha ISO, especie].
+    Un registro por avistamiento: [longitud, latitud, zona, fecha ISO, especie, departamento].
     Formato de ECharts (longitud primero). El agrupado en celdas/puntos lo hace el navegador,
     así el filtro por especie del mapa no necesita pedirle nada al servidor.
     """
@@ -211,18 +296,21 @@ def _registros_mapa():
         .order_by('-fecha_avistamiento', '-id_registro')
         .values_list(
             'ubicacion__longitud', 'ubicacion__latitud', 'ubicacion__zona', 'fecha_avistamiento',
-            'especie__nombre_comun', 'especie__nombre_cientifico',
+            'especie__nombre_comun', 'especie__nombre_cientifico', 'ubicacion__departamento',
         )[:MAX_REGISTROS_MAPA]
     )
+    filas = list(filas)
+    zonas_norm = _mapa_zonas(f[2] for f in filas if f[2])
     return [
         [
             float(lon),   # float(): DecimalField no se serializa a JSON directamente
             float(lat),
-            zona or '',
+            zonas_norm.get(zona, ''),   # nombre normalizado ('' si no tiene)
             fecha.isoformat() if fecha else '',
             comun or cientifico or 'Especie sin identificar',
+            _etiqueta_departamento(depto),   # '' si la ubicación no tiene departamento
         ]
-        for lon, lat, zona, fecha, comun, cientifico in filas
+        for lon, lat, zona, fecha, comun, cientifico, depto in filas
     ]
 
 def _hace(fecha):

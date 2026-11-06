@@ -1,4 +1,5 @@
 {% extends "MisionaBio/base.html" %}
+{% load static %}
 
 {% block title %}{{ titulo }}{% endblock %}
 
@@ -23,13 +24,25 @@
   }
 
 
+  /* Secciones del formulario */
+  .av-form .form-section { margin:0 0 1.75rem; padding:0; border:0; }
+  .av-form .form-section + .form-section { padding-top:1.5rem; border-top:1px solid var(--af-line); }
+  .av-form .form-section__title { margin:0 0 .25rem; font-family:"Fraunces", Georgia, serif; font-size:1.1rem; font-weight:600; color:var(--af-ink); }
+  .av-form details.form-section > summary { cursor:pointer; list-style:revert; }
+  .av-form .form-section__help { margin:0 0 .9rem; font-size:.85rem; color:var(--af-muted); }
+  .av-form details.form-section:not([open]) > summary { margin-bottom:0; }
+  .av-form details.form-section[open] > summary { margin-bottom:.6rem; }
+  .av-form .form-leyenda { font-size:.82rem; color:var(--af-muted); }
+  .av-form .req { color:#b3261e; }
+  .av-form .req[hidden] { display:none; }
+
   .av-form .form-actions { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.75rem; padding-top:1.25rem; border-top:1px solid var(--af-line); }
   @media (max-width:640px) { .av-form .form-actions .btn { flex:1 1 100%; text-align:center; } }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="av-form">
+<div class="av-form" data-geojson="{% static 'MisionaBio/geo/misiones_departamentos.geojson' %}">
 
   <div class="page-header">
     <div>
@@ -37,8 +50,8 @@
 
       {% if es_admin %}
         <p>
-          Los campos con * son obligatorios. Si el estado es «Validado» o
-          «Corregido», quedás registrado como curador.
+          Los campos con <span class="req" aria-hidden="true">*</span> son obligatorios; el resto es opcional.
+          Si el estado es «Validado» o «Corregido», la especie también es obligatoria y quedás registrado como curador.
         </p>
       {% else %}
         <p>
@@ -70,4 +83,72 @@
   </form>
 
 </div>
+
+{{ form.lugares_existentes|json_script:"lugares-existentes" }}
+<datalist id="lista-lugares"></datalist>
+
+<script>
+(function () {
+  const form = document.querySelector(".av-form form");
+  if (!form) return;
+  const campo = (n) => form.elements[n];
+
+  /* --- Asteriscos condicionales --------------------------------------- */
+  const estado = campo("estado_calidad");
+  const GRUPO_UBICACION = ["lugar_nombre", "lugar_departamento"];
+  function actualizarObligatorios() {
+    const pideEspecie = estado && ["VALIDADO", "CORREGIDO"].includes(estado.value);
+    const hayUbicacion = GRUPO_UBICACION.some((n) => campo(n) && campo(n).value.trim() !== "");
+    form.querySelectorAll('[data-req-si="estado"]').forEach((el) => { el.hidden = !pideEspecie; });
+    form.querySelectorAll('[data-req-si="ubicacion"]').forEach((el) => { el.hidden = !hayUbicacion; });
+  }
+  form.addEventListener("input", actualizarObligatorios);
+  form.addEventListener("change", actualizarObligatorios);
+  actualizarObligatorios();
+
+  /* --- Departamento -> coordenadas ------------------------------------ */
+  // Latitud, longitud y precisión van ocultas. Al cambiar el departamento se vacían las
+  // coordenadas para que el servidor ponga el punto aproximado del nuevo departamento.
+  const selDepto = campo("lugar_departamento"), inLat = campo("lugar_latitud"), inLon = campo("lugar_longitud");
+  const selPrec = campo("lugar_precision");
+  if (selDepto && inLat && inLon) {
+    selDepto.addEventListener("change", () => {
+      inLat.value = ""; inLon.value = "";
+      if (selPrec) selPrec.value = "APROXIMADA";
+    });
+  }
+
+  /* --- Autocompletado de lugares ya cargados -------------------------- */
+  let lugares = [];
+  try { lugares = JSON.parse(document.getElementById("lugares-existentes").textContent) || []; } catch (e) { lugares = []; }
+  const nombre = campo("lugar_nombre");
+  if (!nombre || !lugares.length) return;
+
+  const lista = document.getElementById("lista-lugares");
+  lugares.forEach((l) => { const o = document.createElement("option"); o.value = l.n; lista.appendChild(o); });
+
+  const aviso = document.createElement("p");
+  aviso.className = "field-help";
+  aviso.hidden = true;
+  nombre.closest(".field").appendChild(aviso);
+
+  const AUTO = { lugar_departamento: "d", lugar_latitud: "lat", lugar_longitud: "lon", lugar_precision: "p" };
+  // Si la persona edita a mano un dato autocompletado, deja de considerarse automático.
+  Object.keys(AUTO).forEach((n) => { if (campo(n)) campo(n).addEventListener("input", () => { delete campo(n).dataset.auto; }); });
+
+  nombre.addEventListener("input", () => {
+    const buscado = nombre.value.trim().toLowerCase();
+    const l = lugares.find((x) => x.n.trim().toLowerCase() === buscado);
+    if (!l) { aviso.hidden = true; return; }
+    Object.entries(AUTO).forEach(([n, k]) => {
+      const el = campo(n);
+      if (!el || l[k] === "" || l[k] === null) return;
+      if (el.value.trim() === "" || el.dataset.auto === "1") { el.value = l[k]; el.dataset.auto = "1"; }
+    });
+    aviso.textContent = "Lugar ya cargado: se completó el departamento. Podés cambiarlo si hace falta.";
+    aviso.hidden = false;
+    actualizarObligatorios();
+  });
+})();
+</script>
 {% endblock %}
